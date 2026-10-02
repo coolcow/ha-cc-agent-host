@@ -1,0 +1,52 @@
+{
+  "config": {
+    "step": {
+      "hassio_confirm": {
+        "title": "CC Agent Host",
+        "description": "Home Assistant mit dem Add-on CC Agent Host verbinden?"
+      },
+      "user": {
+        "data": {"host": "Host", "port": "Port", "api_key": "API-Schlüssel"},
+        "description": "Adresse und API-Schlüssel der Auftrags-Schnittstelle von CC Agent Host."
+      },
+      "reauth_confirm": {
+        "data": {"api_key": "API-Schlüssel"},
+        "description": "Der API-Schlüssel des Add-ons ist nicht mehr gültig."
+      }
+    },
+    "error": {
+      "cannot_connect": "Das Add-on ist nicht erreichbar.",
+      "invalid_auth": "Ungültiger API-Schlüssel."
+    },
+    "abort": {
+      "already_configured": "CC Agent Host ist bereits eingerichtet.",
+      "single_instance_allowed": "CC Agent Host ist bereits eingerichtet.",
+      "reauth_successful": "API-Schlüssel aktualisiert."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "signed_in": {"name": "Angemeldet"},
+      "job_token": {"name": "Job-Token"},
+      "job_running": {"name": "Auftrag läuft"}
+    },
+    "sensor": {
+      "usage_5h": {"name": "Plan-Nutzung 5-Stunden-Fenster"},
+      "usage_week": {"name": "Plan-Nutzung Wochenfenster"},
+      "reset_5h": {"name": "Reset 5-Stunden-Fenster"},
+      "reset_week": {"name": "Reset Wochenfenster"},
+      "usage_updated": {"name": "Nutzung aktualisiert"}
+    }
+  },
+  "services": {
+    "run": {
+      "name": "Auftrag ausführen",
+      "description": "Führt im Add-on einen Claude-Code-Auftrag mit einem Profil aus und gibt das Ergebnis zurück.",
+      "fields": {
+        "profile": {"name": "Profil", "description": "Name eines Profils im Add-on (z. B. read, log-digest)."},
+        "prompt": {"name": "Auftrag", "description": "Aufgabe für Claude Code."},
+        "timeout": {"name": "Zeitlimit", "description": "Maximale Laufzeit; das Profil begrenzt zusätzlich."}
+      }
+    }
+  }
+}

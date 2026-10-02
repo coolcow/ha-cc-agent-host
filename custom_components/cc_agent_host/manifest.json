@@ -1,0 +1,12 @@
+{
+  "domain": "cc_agent_host",
+  "name": "CC Agent Host",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/coolcow/ha-cc-agent-host",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "0.1.0"
+}

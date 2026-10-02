@@ -25,8 +25,8 @@ Raise `version` in `cc_agent_host/config.yaml` and add a `CHANGELOG.md` entry fo
 |---|---|---|
 | Lint | shell (shellcheck), Dockerfile (hadolint), YAML (yamllint); later Python (ruff) | `tools/lint.sh` (docker) |
 | Image | builds, Claude Code runs, nginx config valid, ttyd socket mode, services present, no ports | `tests/addon/test_image.sh` (docker) |
-| Job API *(phase 2)* | pytest: auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens | `pytest tests/api` |
-| Integration *(phase 3)* | pytest-homeassistant-custom-component; hassfest and HACS validation in CI | `pytest tests/integration` |
+| Job API | pytest: auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens | `pytest tests/api` |
+| Integration | pytest-homeassistant-custom-component (Python 3.14, mocked API); hassfest; HACS validation in CI | `tools/test-integration.sh` (docker) |
 | On device | install on the device, manual checklist per phase | `docs/PLAN.md` |
 
 ## CI strategy (GitHub Actions, once published)
@@ -48,3 +48,16 @@ Raise `version` in `cc_agent_host/config.yaml` and add a `CHANGELOG.md` entry fo
 
 - App version: SemVer in `config.yaml`, tag `vX.Y.Z`.
 - Claude Code version bumps raise the patch version.
+
+## Scope
+
+The project is the add-on plus the generic integration (the bridge to Home Assistant). Use cases such as
+log digests or usage statistics are *not* part of it: they are automations/packages in the user's own
+configuration (later possibly shared as blueprints in a separate repository).
+
+## Installing the integration locally
+
+```bash
+scp -r custom_components/cc_agent_host <ha-host>:/homeassistant/custom_components/
+# restart Home Assistant; the add-on's discovery then offers the setup under Settings → Devices & services
+```

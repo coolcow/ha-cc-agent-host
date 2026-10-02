@@ -1,0 +1,10 @@
+{
+  "entity": {
+    "binary_sensor": {"job_token": {"default": "mdi:key"}},
+    "sensor": {
+      "usage_5h": {"default": "mdi:gauge"},
+      "usage_week": {"default": "mdi:gauge"}
+    }
+  },
+  "services": {"run": {"service": "mdi:robot"}}
+}

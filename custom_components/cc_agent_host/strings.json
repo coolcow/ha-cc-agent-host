@@ -1,0 +1,52 @@
+{
+  "config": {
+    "step": {
+      "hassio_confirm": {
+        "title": "CC Agent Host",
+        "description": "Connect Home Assistant to the CC Agent Host add-on?"
+      },
+      "user": {
+        "data": {"host": "Host", "port": "Port", "api_key": "API key"},
+        "description": "Address and API key of the CC Agent Host job API."
+      },
+      "reauth_confirm": {
+        "data": {"api_key": "API key"},
+        "description": "The API key of the add-on is no longer valid."
+      }
+    },
+    "error": {
+      "cannot_connect": "The add-on is not reachable.",
+      "invalid_auth": "Invalid API key."
+    },
+    "abort": {
+      "already_configured": "CC Agent Host is already set up.",
+      "single_instance_allowed": "CC Agent Host is already set up.",
+      "reauth_successful": "API key updated."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "signed_in": {"name": "Signed in"},
+      "job_token": {"name": "Job token"},
+      "job_running": {"name": "Job running"}
+    },
+    "sensor": {
+      "usage_5h": {"name": "Plan usage 5-hour window"},
+      "usage_week": {"name": "Plan usage weekly window"},
+      "reset_5h": {"name": "5-hour window reset"},
+      "reset_week": {"name": "Weekly window reset"},
+      "usage_updated": {"name": "Usage updated"}
+    }
+  },
+  "services": {
+    "run": {
+      "name": "Run job",
+      "description": "Runs a Claude Code job in the add-on with a profile and returns the result.",
+      "fields": {
+        "profile": {"name": "Profile", "description": "Name of a profile in the add-on (e.g. read, log-digest)."},
+        "prompt": {"name": "Prompt", "description": "Task for Claude Code."},
+        "timeout": {"name": "Timeout", "description": "Maximum run time; capped by the profile."}
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+run:
+  fields:
+    profile:
+      required: true
+      example: log-digest
+      selector:
+        text:
+    prompt:
+      required: true
+      example: Summarize today's errors in five bullet points.
+      selector:
+        text:
+          multiline: true
+    timeout:
+      required: false
+      selector:
+        number:
+          min: 10
+          max: 1800
+          unit_of_measurement: s
