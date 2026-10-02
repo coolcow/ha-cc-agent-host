@@ -30,10 +30,9 @@ check "login stored in /data" '[ "$CLAUDE_CONFIG_DIR" = /data/claude ] && [ "$HO
 check "nginx config valid" "mkdir -p /run/ttyd && nginx -t -c /etc/nginx/nginx.conf"
 check "nginx admits only the ingress gateway" \
     "grep -q 'allow 172.30.32.2;' /etc/nginx/nginx.conf && grep -q 'deny all;' /etc/nginx/nginx.conf"
-check "ttyd listens on a unix socket only" "grep -q -- '--interface /run/ttyd/ttyd.sock' /etc/s6-overlay/s6-rc.d/ttyd/run"
 check "tools present" "command -v ttyd tmux git jq bashio"
 check "s6 services registered" \
-    "for s in init-cc session ttyd nginx; do [ -e /etc/s6-overlay/s6-rc.d/user/contents.d/\$s ] || exit 1; done"
+    "for s in init-cc session ttyd nginx api; do [ -e /etc/s6-overlay/s6-rc.d/user/contents.d/\$s ] || exit 1; done"
 check "scripts executable" \
     "[ -x /usr/local/bin/cc-session ] && for f in /etc/s6-overlay/s6-rc.d/*/run; do [ -x \$f ] || exit 1; done"
 
@@ -58,5 +57,7 @@ rcheck "nginx user can reach ttyd" \
 rcheck "other clients get 403 from nginx" \
     '[ "$(curl -s -o /dev/null -w %{http_code} http://$(hostname -i):8099/)" = 403 ]'
 rcheck "tmux session cc running" 'tmux has-session -t cc'
+rcheck "only ports 8099 (ingress) and 8100 (job API) listen" \
+    '[ "$(netstat -tln | awk "NR>2 {sub(/.*:/, \"\", \$4); print \$4}" | sort -u | tr "\n" " ")" = "8099 8100 " ]'
 
 exit "$fail"
