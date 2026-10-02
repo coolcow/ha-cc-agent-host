@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-mapfile -t scripts < <(grep -rlE '^#!.*(bash|sh|bashio)' cc_agent_host tools tests)
+mapfile -t scripts < <(grep -rlIE --exclude-dir=__pycache__ '^#!.*(bash|/sh|bashio)' cc_agent_host tools tests)
 
 echo "== shellcheck"
 docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0 -x -s bash "${scripts[@]}"
@@ -13,5 +13,8 @@ docker run --rm -i hadolint/hadolint:v2.12.0 hadolint --ignore DL3018 - < cc_age
 
 echo "== yamllint"
 docker run --rm -v "$PWD:/mnt" -w /mnt cytopia/yamllint:1.26 -c .yamllint .
+
+echo "== ruff"
+docker run --rm -v "$PWD:/mnt" -w /mnt ghcr.io/astral-sh/ruff:0.6.9 check .
 
 echo "lint ok"

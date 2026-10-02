@@ -1,5 +1,5 @@
 name: CC Agent Host
-version: "0.1.1"
+version: "0.2.0"
 slug: cc_agent_host
 description: Runs the official Claude Code CLI inside Home Assistant with your own subscription
 arch:
@@ -16,11 +16,22 @@ panel_icon: mdi:console
 panel_title: CC Agent Host
 panel_admin: true
 
+# Mounted below /srv/ha (mode 700): the job user cc_agent cannot reach any of it
 map:
   - type: homeassistant_config
     read_only: false
+    path: /srv/ha/config
   - type: addon_config
     read_only: false
+    path: /srv/ha/addon_config
+
+# Context data for jobs (core log, states); never passed to the job user
+hassio_api: true
+homeassistant_api: true
+
+# Announces the job API (host, port, token) to the companion integration
+discovery:
+  - cc_agent_host
 
 options:
   remote_control: false

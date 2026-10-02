@@ -1,0 +1,14 @@
+#!/bin/bash
+# Store the long-lived token for jobs. Create it first with: claude setup-token
+set -euo pipefail
+file=/data/job_token
+echo "Paste the token printed by 'claude setup-token' (input is hidden), then press Enter."
+echo "Leave empty to keep the current token; type 'delete' to remove it."
+read -rs token
+echo
+case "$token" in
+    "") echo "Unchanged." ;;
+    delete) rm -f "$file"; echo "Job token removed." ;;
+    sk-ant-oat*) umask 077; printf '%s' "$token" > "$file"; echo "Job token stored." ;;
+    *) echo "This does not look like a token from 'claude setup-token' (sk-ant-oat…). Nothing stored." >&2; exit 1 ;;
+esac

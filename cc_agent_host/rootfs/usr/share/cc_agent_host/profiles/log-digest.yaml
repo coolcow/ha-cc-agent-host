@@ -1,0 +1,9 @@
+# Read-only job with the Home Assistant core log, e.g. for a daily digest.
+description: Summarize the Home Assistant log
+model: sonnet
+max_turns: 10
+timeout: 300
+tools: [Read, Grep, Glob]
+context:
+  - ha_log:
+      lines: 3000

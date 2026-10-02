@@ -1,0 +1,10 @@
+# Read-only job with a filtered copy of the Home Assistant configuration
+# (secrets.yaml, .storage, keys and .git are always excluded).
+description: Read-only questions about the Home Assistant configuration
+model: sonnet
+max_turns: 15
+timeout: 600
+tools: [Read, Grep, Glob]
+context:
+  - ha_config:
+      exclude: []

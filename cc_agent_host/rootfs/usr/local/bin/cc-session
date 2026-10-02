@@ -15,7 +15,7 @@ else
     echo
 fi
 
-claude "${args[@]}"
+claude --settings /usr/share/cc_agent_host/interactive-settings.json "${args[@]}"
 
 echo
 echo "Claude Code has exited. This is a shell; type 'exit' to start Claude Code again."

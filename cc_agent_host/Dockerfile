@@ -1,6 +1,11 @@
 FROM ghcr.io/home-assistant/base:3.24
 
-RUN apk add --no-cache bash git jq nginx tmux ttyd
+RUN apk add --no-cache bash git jq nginx py3-yaml python3 su-exec tmux ttyd
+
+# Unprivileged user for jobs; the HA configuration is mounted below /srv/ha (root only)
+RUN adduser -D -H -h /data/agent/home -s /sbin/nologin -u 1000 cc_agent \
+    && mkdir -p /srv/ha && chmod 700 /srv/ha \
+    && ln -s /srv/ha/config /homeassistant
 
 # Official Claude Code native build (musl), pinned and checksum-verified.
 # Same binary the official installer would place; it is not modified.
@@ -21,7 +26,9 @@ RUN case "$(apk --print-arch)" in \
     && rm -rf /tmp/cc.tgz /tmp/package \
     && claude --version
 
-ENV HOME=/data/home \
+ARG BUILD_VERSION=dev
+ENV CC_VERSION=$BUILD_VERSION \
+    HOME=/data/home \
     CLAUDE_CONFIG_DIR=/data/claude \
     DISABLE_AUTOUPDATER=1 \
     LANG=C.UTF-8

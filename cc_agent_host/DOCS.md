@@ -1,7 +1,7 @@
 # CC Agent Host
 
 Runs the official, unmodified Claude Code CLI inside Home Assistant with your own
-Claude subscription.
+Claude subscription: a web terminal, optional Remote Control and jobs from automations.
 
 Not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks
 of Anthropic, PBC.
@@ -15,6 +15,45 @@ of Anthropic, PBC.
 The session keeps running when you close the browser. Exiting Claude Code drops you
 into a shell; `exit` starts Claude Code again.
 
+## Jobs
+
+Jobs run Claude Code unattended (`claude -p`) with a **profile** and return the result.
+They use a separate long-lived token, so they never touch your interactive login:
+
+1. In the terminal, exit Claude Code (`/exit`), then run `claude setup-token` and complete the sign-in.
+2. Run `cc-job-token` and paste the printed token (input is hidden).
+3. Type `exit` to return to Claude Code.
+
+Profiles are YAML files in the add-on configuration folder (`profiles/`). Defaults:
+
+| Profile | Tools | Context files |
+|---|---|---|
+| `read` | Read, Grep, Glob | none |
+| `read-config` | Read, Grep, Glob | filtered copy of the HA configuration |
+| `log-digest` | Read, Grep, Glob | Home Assistant core log |
+
+Profile keys: `description`, `model` (default `sonnet`), `max_turns`, `timeout` (seconds, max 1800),
+`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_log`, `ha_states`, `ha_config`),
+`system_prompt`.
+
+### How jobs are isolated
+
+- Jobs run as the unprivileged user `cc_agent` in a temporary directory with only their context files.
+- The Home Assistant configuration, the add-on data (login, tokens, options) and the Supervisor token are
+  not accessible to that user at all; context files are prepared by the add-on.
+- Only the tools listed in the profile are available; everything else is denied without prompting.
+- One job at a time, time limit per profile, output capped, every job logged (without the prompt text)
+  in the add-on data (`audit.log`).
+
+### API
+
+Reachable only from the internal Home Assistant network, with a bearer token that the add-on announces
+to the companion integration. `GET /status`, `GET /profiles`, `GET /usage`,
+`POST /run {"profile": "...", "prompt": "...", "timeout": 300}`.
+
+`/usage` returns the plan usage (5-hour and weekly windows) as reported by Claude Code's status line in
+the interactive session; it never reads credentials.
+
 ## Long links
 
 Long links (for example the sign-in link) wrap over several lines, and only the first line
@@ -23,8 +62,8 @@ automatically. Paste it into a new browser tab; the line breaks are removed on p
 
 ## Data
 
-- Login and Claude Code settings: add-on data (`/data/claude`), included in backups.
-- Working directory: your Home Assistant configuration (`/homeassistant`).
+- Login and Claude Code settings: add-on data, included in backups.
+- Working directory of the terminal: your Home Assistant configuration (`/homeassistant`).
 
 ## Security
 

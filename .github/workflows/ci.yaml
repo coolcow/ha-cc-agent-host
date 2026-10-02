@@ -15,8 +15,18 @@ jobs:
       - uses: actions/checkout@v4
       - run: tools/lint.sh
 
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml
+      - run: pytest -q tests/api
+
   image:
-    needs: lint
+    needs: [lint, api]
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -31,3 +41,5 @@ jobs:
         run: docker build -t cc-agent-host:${{ matrix.arch }} cc_agent_host
       - name: Image tests
         run: tests/addon/test_image.sh cc-agent-host:${{ matrix.arch }}
+      - name: Isolation tests
+        run: tests/addon/test_isolation.sh cc-agent-host:${{ matrix.arch }}

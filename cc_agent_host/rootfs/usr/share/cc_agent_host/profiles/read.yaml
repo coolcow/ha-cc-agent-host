@@ -1,0 +1,7 @@
+# Read-only job: Claude can read the context files of the job, nothing else.
+description: Read-only analysis of the job's context files
+model: sonnet
+max_turns: 10
+timeout: 300
+tools: [Read, Grep, Glob]
+context: []
