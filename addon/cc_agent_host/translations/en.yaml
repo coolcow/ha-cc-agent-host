@@ -1,0 +1,7 @@
+configuration:
+  remote_control:
+    name: Remote Control
+    description: >-
+      Start the persistent session with Claude Code Remote Control, so it can be
+      driven from the Claude app and claude.ai/code. Takes effect after signing in
+      and restarting the add-on.

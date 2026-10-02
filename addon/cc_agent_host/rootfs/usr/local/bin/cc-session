@@ -1,0 +1,22 @@
+#!/bin/bash
+# Command of the persistent tmux session "cc": Claude Code, then a shell.
+# When the shell exits, the session ends and the session service starts a new one.
+
+cd /homeassistant || cd /
+
+args=()
+if [ -s "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
+    if [ "${CC_REMOTE_CONTROL:-false}" = "true" ]; then
+        args+=(--remote-control "CC Agent Host")
+    fi
+else
+    echo "Not signed in yet: type /login in Claude Code and follow the steps."
+    echo "Afterwards restart the add-on (or /exit, then exit) to enable Remote Control."
+    echo
+fi
+
+claude "${args[@]}"
+
+echo
+echo "Claude Code has exited. This is a shell; type 'exit' to start Claude Code again."
+exec bash -l

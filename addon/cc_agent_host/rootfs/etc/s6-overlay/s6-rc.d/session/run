@@ -1,0 +1,11 @@
+#!/usr/bin/with-contenv bashio
+# Keeps the tmux session "cc" alive, also without a browser attached (Remote Control)
+CC_REMOTE_CONTROL="$(bashio::config 'remote_control')"
+export CC_REMOTE_CONTROL
+while true; do
+    if ! tmux has-session -t cc 2>/dev/null; then
+        bashio::log.info "Starting session (Remote Control: ${CC_REMOTE_CONTROL})"
+        tmux new-session -d -s cc -x 200 -y 50 /usr/local/bin/cc-session
+    fi
+    sleep 5
+done

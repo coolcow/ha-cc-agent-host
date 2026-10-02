@@ -1,0 +1,4 @@
+#!/usr/bin/with-contenv bashio
+until [ -S /run/ttyd/ttyd.sock ]; do sleep 0.2; done
+chmod 660 /run/ttyd/ttyd.sock
+exec nginx -c /etc/nginx/nginx.conf

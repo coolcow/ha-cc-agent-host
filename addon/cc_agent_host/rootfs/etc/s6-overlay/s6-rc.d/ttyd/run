@@ -1,0 +1,6 @@
+#!/usr/bin/with-contenv bashio
+# Web terminal on a unix socket, readable only by nginx; attaches to the session "cc"
+rm -f /run/ttyd/ttyd.sock
+exec ttyd --writable --interface /run/ttyd/ttyd.sock --socket-owner root:nginx \
+    --client-option titleFixed="CC Agent Host" --client-option fontSize=14 \
+    tmux new-session -A -s cc /usr/local/bin/cc-session
