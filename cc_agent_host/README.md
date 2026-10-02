@@ -24,16 +24,17 @@ They use a separate long-lived token, so they never touch your interactive login
 2. Run `cc-job-token` and paste the printed token (input is hidden).
 3. Type `exit` to return to Claude Code.
 
-Profiles are YAML files in the add-on configuration folder (`profiles/`). Defaults:
+Profiles are YAML files in the add-on configuration folder (`profiles/`). Missing default profiles are
+added on start; existing files are never overwritten. Defaults:
 
 | Profile | Tools | Context files |
 |---|---|---|
 | `read` | Read, Grep, Glob | none |
 | `read-config` | Read, Grep, Glob | filtered copy of the HA configuration |
-| `log-digest` | Read, Grep, Glob | Home Assistant core log |
+| `log-digest` | Read, Grep, Glob | Home Assistant system log (errors, warnings) |
 
 Profile keys: `description`, `model` (default `sonnet`), `max_turns`, `timeout` (seconds, max 1800),
-`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_log`, `ha_states`, `ha_config`),
+`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_system_log`, `ha_states`, `ha_config`; `ha_log` needs the Supervisor role `homeassistant`),
 `system_prompt`.
 
 ### How jobs are isolated

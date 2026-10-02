@@ -1,6 +1,6 @@
 FROM ghcr.io/home-assistant/base:3.24
 
-RUN apk add --no-cache bash git jq nginx py3-yaml python3 su-exec tmux ttyd
+RUN apk add --no-cache bash git jq nginx py3-aiohttp py3-yaml python3 su-exec tmux ttyd
 
 # Unprivileged user for jobs; the HA configuration is mounted below /srv/ha (root only)
 RUN adduser -D -H -h /data/agent/home -s /sbin/nologin -u 1000 cc_agent \

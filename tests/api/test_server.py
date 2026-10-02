@@ -145,3 +145,25 @@ def test_usage(env, http):
     assert http("GET", "/usage")[1]["available"] is False
     (env["tmp"] / "usage.json").write_text(json.dumps({"updated_at": 1, "rate_limits": {"five_hour": {}}}))
     assert http("GET", "/usage")[1]["available"] is True
+
+
+def test_system_log_context(env, http, monkeypatch):
+    entries = [{"level": "ERROR", "count": 3, "message": ["boom"]}, {"level": "INFO", "count": 1, "message": ["x"]}]
+    monkeypatch.setattr(env["server"], "ha_websocket", lambda cmd: entries)
+    (env["profiles"] / "log.yaml").write_text("context:\n  - ha_system_log:\n      levels: [ERROR]\n")
+    code, r = http("POST", "/run", {"profile": "log", "prompt": "x"})
+    assert code == 200 and "ha_system_log.json" in result_of(r)["files"]
+    job = env["tmp"] / "probe2"
+    job.mkdir()
+    env["server"].ctx_ha_system_log(job, {"levels": ["ERROR"]})
+    assert json.loads((job / "ha_system_log.json").read_text()) == entries[:1]
+
+
+def test_context_failure_reported(env, http, monkeypatch):
+    def broken(cmd):
+        raise RuntimeError("websocket auth failed")
+    monkeypatch.setattr(env["server"], "ha_websocket", broken)
+    (env["profiles"] / "log.yaml").write_text("context: [ha_system_log]\n")
+    code, r = http("POST", "/run", {"profile": "log", "prompt": "x"})
+    assert code == 500 and "websocket auth failed" in r["error"]
+    assert list(env["jobs"].iterdir()) == []

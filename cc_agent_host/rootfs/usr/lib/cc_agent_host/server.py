@@ -131,11 +131,42 @@ def supervisor_get(path, accept="application/json", headers=None):
 
 
 def ctx_ha_log(job_dir, opts):
+    """Raw core log; requires hassio_role homeassistant (not granted by default)."""
     lines = int(opts.get("lines", 2000))
     raw = supervisor_get("/core/logs", "text/plain", {"Range": f"entries=:-{lines}:"})
     text = re.sub(r"\x1b\[[0-9;]*m", "", raw.decode("utf-8", "replace"))
     (job_dir / "ha_log.txt").write_text(text)
     return f"ha_log.txt: last {lines} lines of the Home Assistant core log"
+
+
+def ha_websocket(command):
+    """One command over the Home Assistant websocket API (via the Supervisor proxy)."""
+    import asyncio
+
+    import aiohttp
+
+    async def call():
+        async with aiohttp.ClientSession() as session, session.ws_connect(
+                SUPERVISOR.replace("http", "ws", 1) + "/core/websocket", max_msg_size=MAX_CONTEXT) as ws:
+            await ws.receive_json()  # auth_required
+            await ws.send_json({"type": "auth", "access_token": ENV("SUPERVISOR_TOKEN", "")})
+            if (await ws.receive_json()).get("type") != "auth_ok":
+                raise RuntimeError("websocket auth failed")
+            await ws.send_json({"id": 1, **command})
+            msg = await ws.receive_json()
+            if not msg.get("success"):
+                raise RuntimeError(f"websocket command failed: {msg.get('error')}")
+            return msg["result"]
+
+    return asyncio.run(asyncio.wait_for(call(), 30))
+
+
+def ctx_ha_system_log(job_dir, opts):
+    levels = opts.get("levels", ["ERROR", "CRITICAL", "WARNING"])
+    entries = [e for e in ha_websocket({"type": "system_log/list"}) if e.get("level") in levels]
+    (job_dir / "ha_system_log.json").write_text(json.dumps(entries, ensure_ascii=False, indent=1))
+    return (f"ha_system_log.json: {len(entries)} deduplicated Home Assistant log entries ({', '.join(levels)}) "
+            "with count, first_occurred and timestamp (last occurrence, Unix time), logger name, source, message")
 
 
 def ctx_ha_states(job_dir, opts):
@@ -168,7 +199,8 @@ def ctx_ha_config(job_dir, opts):
     return f"ha_config/: {count} Home Assistant configuration files (secrets and .storage excluded)"
 
 
-CONTEXT_PROVIDERS = {"ha_log": ctx_ha_log, "ha_states": ctx_ha_states, "ha_config": ctx_ha_config}
+CONTEXT_PROVIDERS = {"ha_log": ctx_ha_log, "ha_system_log": ctx_ha_system_log,
+                     "ha_states": ctx_ha_states, "ha_config": ctx_ha_config}
 
 
 # --- jobs -------------------------------------------------------------------------------

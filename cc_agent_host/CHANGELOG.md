@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Context provider `ha_system_log` (deduplicated errors/warnings via the HA websocket API); `log-digest`
+  uses it. `ha_log` (raw core log) needs the Supervisor role `homeassistant`, which is not granted.
+
 ## 0.2.0
 
 - Job API (`/run`, `/status`, `/profiles`, `/usage`) with profiles, announced to Home Assistant

@@ -1,9 +1,10 @@
-# Read-only job with the Home Assistant core log, e.g. for a daily digest.
-description: Summarize the Home Assistant log
+# Read-only job with the deduplicated Home Assistant system log (errors and warnings),
+# e.g. for a daily digest.
+description: Summarize Home Assistant errors and warnings
 model: sonnet
 max_turns: 10
 timeout: 300
 tools: [Read, Grep, Glob]
 context:
-  - ha_log:
-      lines: 3000
+  - ha_system_log:
+      levels: [ERROR, CRITICAL, WARNING]
