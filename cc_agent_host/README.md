@@ -15,6 +15,12 @@ of Anthropic, PBC.
 The session keeps running when you close the browser. Exiting Claude Code drops you
 into a shell; `exit` starts Claude Code again.
 
+## Long links
+
+Long links (for example the sign-in link) wrap over several lines, and only the first line
+is clickable. Hold **Shift** and select the whole link with the mouse: the selection is copied
+automatically. Paste it into a new browser tab; the line breaks are removed on paste.
+
 ## Data
 
 - Login and Claude Code settings: add-on data (`/data/claude`), included in backups.
