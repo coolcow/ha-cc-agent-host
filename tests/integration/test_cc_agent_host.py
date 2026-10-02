@@ -14,6 +14,7 @@ from custom_components.cc_agent_host.const import CONF_API_KEY, DOMAIN
 BASE = "http://local-cc-agent-host:8100"
 DATA = {CONF_HOST: "local-cc-agent-host", CONF_PORT: 8100, CONF_API_KEY: "key"}
 STATUS = {"version": "0.2.1", "claude_version": "2.1.287", "signed_in": True, "job_token": True,
+          "plan": {"plan": "max_5x", "subscription": "max", "tier": "default_claude_max_5x", "multiplier": 5},
           "running": False, "running_profile": None, "profiles": ["read"]}
 USAGE = {"source": "statusline", "available": True, "updated_at": 1790950000,
          "rate_limits": {"five_hour": {"used_percentage": 23.5, "resets_at": 1790958000},
@@ -121,3 +122,9 @@ async def test_credit_sensors_from_usage_api(hass: HomeAssistant, aioclient_mock
     assert hass.states.get("sensor.cc_agent_host_usage_credit_used").state == "30.27"
     assert hass.states.get("sensor.cc_agent_host_usage_credit_remaining").state == "219.73"
     assert hass.states.get("sensor.cc_agent_host_usage_source").state == "api"
+
+
+async def test_plan_sensor(hass: HomeAssistant, aioclient_mock):
+    await setup(hass, aioclient_mock)
+    st = hass.states.get("sensor.cc_agent_host_plan")
+    assert st.state == "max_5x" and st.attributes["multiplier"] == 5 and st.attributes["subscription"] == "max"

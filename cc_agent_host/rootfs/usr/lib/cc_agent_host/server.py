@@ -352,8 +352,44 @@ def api_token():
     return token
 
 
+PLAN_MULTIPLIERS = {"pro": 1, "max_5x": 5, "max_20x": 20}  # usage relative to Pro (Anthropic's plan names)
+_plan_cache = {"at": 0.0, "data": None}
+
+
+def plan():
+    """Plan of the interactive sign-in.
+
+    The subscription type comes from `claude auth status` (official CLI). Max 5x and Max 20x can only be
+    told apart by the rate limit tier stored with the sign-in, which is read (that field only) when the
+    opt-in usage API is enabled; otherwise a Max plan is reported as "max" without multiplier.
+    """
+    if _plan_cache["data"] and time.time() - _plan_cache["at"] < 600:
+        return _plan_cache["data"]
+    subscription, tier = None, None
+    try:
+        env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": ENV("HOME", "/data/home"),
+               "CLAUDE_CONFIG_DIR": str(DATA / "claude"), "DISABLE_AUTOUPDATER": "1", "LANG": "C.UTF-8"}
+        out = subprocess.run([CLAUDE, "auth", "status", "--json"], env=env, capture_output=True, text=True,
+                             timeout=30, cwd="/tmp").stdout
+        subscription = json.loads(out).get("subscriptionType")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    if option("usage_api", False):
+        try:
+            tier = json.loads(INTERACTIVE_CREDENTIALS.read_text())["claudeAiOauth"].get("rateLimitTier")
+        except (OSError, ValueError, KeyError):
+            pass
+    name = subscription or "unknown"
+    if subscription == "max" and tier:
+        name = "max_20x" if "20x" in tier else "max_5x" if "5x" in tier else "max"
+    data = {"plan": name, "subscription": subscription, "tier": tier, "multiplier": PLAN_MULTIPLIERS.get(name)}
+    if subscription:
+        _plan_cache.update(at=time.time(), data=data)
+    return data
+
+
 def status():
-    return {"version": VERSION, "claude_version": claude_version(),
+    return {"version": VERSION, "claude_version": claude_version(), "plan": plan(),
             "signed_in": INTERACTIVE_CREDENTIALS.exists(), "job_token": bool(read_secret(JOB_TOKEN_FILE)),
             "running": running["id"] is not None, "running_profile": running["profile"],
             "profiles": sorted(load_profiles())}

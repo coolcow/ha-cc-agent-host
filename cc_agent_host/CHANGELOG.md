@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `/status` reports the plan of the sign-in (`plan`, `subscription`, `tier`, `multiplier` relative to Pro).
+  The subscription type comes from `claude auth status`; Max 5x vs. Max 20x needs the opt-in `usage_api`.
+
 ## 0.3.0
 
 - Opt-in option `usage_api`: full plan usage incl. usage credits and weekly breakdown from the usage

@@ -76,6 +76,9 @@
           "statusline": "Status line",
           "api": "Usage API"
         }
+      },
+      "plan": {
+        "name": "Plan"
       }
     }
   },

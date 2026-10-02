@@ -73,6 +73,10 @@ Two sources, chosen with the option **Full plan usage via usage API**:
 | Credentials | never touched | the add-on reads the access token of your interactive sign-in |
 | Stability | official Claude Code feature | undocumented endpoint, may change or disappear |
 
+**Plan detection.** `/status` reports the plan of your sign-in (`pro`, `max_5x`, `max_20x`, …) and its
+usage multiplier relative to Pro (1, 5, 20). The subscription type comes from `claude auth status`; only the
+usage API option can tell Max 5x from Max 20x (otherwise the plan is reported as `max`).
+
 **Why the usage API is off by default.** To query it, add-on code has to read the access token of your
 Claude sign-in. Anthropic's terms say third-party software must not collect, store or intermediate
 Claude.ai credentials, and the endpoint itself is not a documented public API. The add-on keeps the

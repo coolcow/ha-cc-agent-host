@@ -76,6 +76,9 @@
           "statusline": "Statuszeile",
           "api": "Usage-API"
         }
+      },
+      "plan": {
+        "name": "Plan"
       }
     }
   },

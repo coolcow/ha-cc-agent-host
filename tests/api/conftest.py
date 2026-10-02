@@ -13,6 +13,7 @@ SERVER_DIR = Path(__file__).resolve().parents[2] / "cc_agent_host/rootfs/usr/lib
 FAKE_CLAUDE = """#!/bin/sh
 # Fake claude: echoes its arguments and stdin as the JSON result; behaviour via FAKE_MODE file
 mode=$(cat "@MODE@" 2>/dev/null)
+if [ "$1" = auth ]; then echo '{"loggedIn": true, "subscriptionType": "max"}'; exit 0; fi
 prompt=$(cat)
 case "$mode" in
   sleep) sleep 30 ;;

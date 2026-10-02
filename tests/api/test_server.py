@@ -235,3 +235,20 @@ def test_usage_api_error_keeps_stale_values(env, http, monkeypatch):
     (env["data"] / "credentials.json").write_text("{}")
     u = http("GET", "/usage")[1]
     assert u["stale"] is True and u["rate_limits"]["five_hour"]["used_percentage"] == 27.0
+
+
+def test_plan_without_usage_api(env, http):
+    p = http("GET", "/status")[1]["plan"]
+    assert p == {"plan": "max", "subscription": "max", "tier": None, "multiplier": None}
+
+
+@pytest.mark.parametrize(("tier", "plan", "mult"), [("default_claude_max_5x", "max_5x", 5),
+                                                    ("default_claude_max_20x", "max_20x", 20)])
+def test_plan_with_usage_api(env, http, monkeypatch, tier, plan, mult):
+    usage_api_env(env, monkeypatch)
+    cred = json.loads((env["data"] / "credentials.json").read_text())
+    cred["claudeAiOauth"]["rateLimitTier"] = tier
+    (env["data"] / "credentials.json").write_text(json.dumps(cred))
+    env["server"]._plan_cache.update(at=0.0, data=None)
+    p = http("GET", "/status")[1]["plan"]
+    assert p["plan"] == plan and p["multiplier"] == mult

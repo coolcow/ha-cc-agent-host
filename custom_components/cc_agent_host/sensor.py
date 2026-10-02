@@ -32,9 +32,16 @@ def _ts(value: Any) -> datetime | None:
 @dataclass(frozen=True, kw_only=True)
 class AgentHostSensorDescription(SensorEntityDescription):
     value: Callable[[dict[str, Any]], Any]
+    source: str = "usage"
+    attributes: Callable[[dict[str, Any]], dict[str, Any]] | None = None
 
 
 DESCRIPTIONS = (
+    # plan of the sign-in: pro, max_5x, max_20x, max (5x/20x unknown), team, ...; multiplier relative to Pro
+    AgentHostSensorDescription(key="plan", source="status", icon="mdi:card-account-details-outline",
+                               value=lambda s: (s.get("plan") or {}).get("plan"),
+                               attributes=lambda s: {k: (s.get("plan") or {}).get(k)
+                                                     for k in ("multiplier", "subscription", "tier")}),
     AgentHostSensorDescription(key="usage_5h", native_unit_of_measurement=PERCENTAGE,
                                state_class=SensorStateClass.MEASUREMENT, suggested_display_precision=0,
                                value=lambda u: _limit(u, "five_hour", "used_percentage")),
@@ -80,4 +87,9 @@ class AgentHostSensor(AgentHostEntity, SensorEntity):
 
     @property
     def native_value(self) -> Any:
-        return self.entity_description.value(self.coordinator.data["usage"])
+        return self.entity_description.value(self.coordinator.data[self.entity_description.source])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        attrs = self.entity_description.attributes
+        return attrs(self.coordinator.data[self.entity_description.source]) if attrs else None
