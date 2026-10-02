@@ -1,6 +1,15 @@
 #!/usr/bin/with-contenv bashio
-# Web terminal on a unix socket, readable only by nginx; attaches to the session "cc"
-rm -f /run/ttyd/ttyd.sock
-exec ttyd --writable --interface /run/ttyd/ttyd.sock --socket-owner root:nginx \
+# Web terminal on a unix socket, accessible only to root and nginx; attaches to the session "cc".
+# ttyd ignores --socket-owner, so the group is set as soon as the socket appears.
+sock=/run/ttyd/ttyd.sock
+rm -f "$sock"
+(
+    for _ in $(seq 100); do
+        [ -S "$sock" ] && chown root:nginx "$sock" && chmod 660 "$sock" && exit 0
+        sleep 0.1
+    done
+    bashio::log.error "ttyd socket did not appear"
+) &
+exec ttyd --writable --interface "$sock" \
     --client-option titleFixed="CC Agent Host" --client-option fontSize=14 \
     tmux new-session -A -s cc /usr/local/bin/cc-session

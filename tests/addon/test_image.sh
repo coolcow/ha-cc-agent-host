@@ -41,4 +41,22 @@ exposed="$(docker image inspect -f '{{json .Config.ExposedPorts}}' "$image")"
 if [ "$exposed" = "null" ] || [ "$exposed" = "{}" ]; then echo "ok   no exposed ports"; else echo "FAIL exposed ports: $exposed"; fail=1; fi
 if ! grep -q '^ports:' cc_agent_host/config.yaml; then echo "ok   no ports in config.yaml"; else echo "FAIL ports in config.yaml"; fail=1; fi
 
+# Runtime: start the services (without Supervisor) and check the terminal path
+cid="$(docker run -d "$image")"
+trap 'docker rm -f "$cid" >/dev/null' EXIT
+for _ in $(seq 60); do
+    docker exec "$cid" sh -c '[ -S /run/ttyd/ttyd.sock ] && pgrep -f "nginx: worker" >/dev/null' 2>/dev/null && break
+    sleep 0.5
+done
+rcheck() {  # rcheck <description> <command...>
+    local desc="$1"; shift
+    if docker exec "$cid" sh -c "$*" >/dev/null 2>&1; then echo "ok   $desc"; else echo "FAIL $desc"; fail=1; fi
+}
+rcheck "socket owned by root:nginx, mode 660" '[ "$(stat -c %U:%G:%a /run/ttyd/ttyd.sock)" = root:nginx:660 ]'
+rcheck "nginx user can reach ttyd" \
+    'su -s /bin/sh nginx -c "curl -fs -o /dev/null --unix-socket /run/ttyd/ttyd.sock http://localhost/"'
+rcheck "other clients get 403 from nginx" \
+    '[ "$(curl -s -o /dev/null -w %{http_code} http://$(hostname -i):8099/)" = 403 ]'
+rcheck "tmux session cc running" 'tmux has-session -t cc'
+
 exit "$fail"

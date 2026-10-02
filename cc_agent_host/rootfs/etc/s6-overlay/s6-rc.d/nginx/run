@@ -1,4 +1,3 @@
 #!/usr/bin/with-contenv bashio
-until [ -S /run/ttyd/ttyd.sock ]; do sleep 0.2; done
-chmod 660 /run/ttyd/ttyd.sock
+until [ -S /run/ttyd/ttyd.sock ] && [ "$(stat -c %G /run/ttyd/ttyd.sock)" = nginx ]; do sleep 0.2; done
 exec nginx -c /etc/nginx/nginx.conf
