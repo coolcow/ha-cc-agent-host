@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: tools/lint.sh
+
+  image:
+    needs: lint
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build -t cc-agent-host:${{ matrix.arch }} cc_agent_host
+      - name: Image tests
+        run: tests/addon/test_image.sh cc-agent-host:${{ matrix.arch }}
