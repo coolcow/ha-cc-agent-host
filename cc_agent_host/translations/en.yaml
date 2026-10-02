@@ -5,3 +5,14 @@ configuration:
       Start the persistent session with Claude Code Remote Control, so it can be
       driven from the Claude app and claude.ai/code. Takes effect after signing in
       and restarting the add-on.
+  usage_api:
+    name: Full plan usage via usage API (opt-in)
+    description: >-
+      Off by default, on purpose. When enabled, the add-on reads the access token of
+      your interactive sign-in to query Anthropic's plan usage endpoint (5-hour and
+      weekly usage plus usage credits), even while you are not using Claude Code.
+      Why opt-in: the endpoint is not a documented public API and may change, and
+      Anthropic's terms restrict third-party software from handling Claude credentials.
+      The token is only sent to api.anthropic.com. When disabled, usage comes from
+      Claude Code's own status line: no credentials are touched, but values only
+      update while the interactive session is in use. See the documentation.

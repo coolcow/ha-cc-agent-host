@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Opt-in option `usage_api`: full plan usage incl. usage credits and weekly breakdown from the usage
+  API (5-minute cache, stale values kept on errors, token refresh left to Claude Code). Explained in
+  the option description and in the documentation.
+
 ## 0.2.1
 
 - Context provider `ha_system_log` (deduplicated errors/warnings via the HA websocket API); `log-digest`

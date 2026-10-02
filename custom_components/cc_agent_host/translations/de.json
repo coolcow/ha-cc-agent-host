@@ -6,11 +6,17 @@
         "description": "Home Assistant mit dem Add-on CC Agent Host verbinden?"
       },
       "user": {
-        "data": {"host": "Host", "port": "Port", "api_key": "API-Schlüssel"},
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "api_key": "API-Schlüssel"
+        },
         "description": "Adresse und API-Schlüssel der Auftrags-Schnittstelle von CC Agent Host."
       },
       "reauth_confirm": {
-        "data": {"api_key": "API-Schlüssel"},
+        "data": {
+          "api_key": "API-Schlüssel"
+        },
         "description": "Der API-Schlüssel des Add-ons ist nicht mehr gültig."
       }
     },
@@ -26,16 +32,51 @@
   },
   "entity": {
     "binary_sensor": {
-      "signed_in": {"name": "Angemeldet"},
-      "job_token": {"name": "Job-Token"},
-      "job_running": {"name": "Auftrag läuft"}
+      "signed_in": {
+        "name": "Angemeldet"
+      },
+      "job_token": {
+        "name": "Job-Token"
+      },
+      "job_running": {
+        "name": "Auftrag läuft"
+      }
     },
     "sensor": {
-      "usage_5h": {"name": "Plan-Nutzung 5-Stunden-Fenster"},
-      "usage_week": {"name": "Plan-Nutzung Wochenfenster"},
-      "reset_5h": {"name": "Reset 5-Stunden-Fenster"},
-      "reset_week": {"name": "Reset Wochenfenster"},
-      "usage_updated": {"name": "Nutzung aktualisiert"}
+      "usage_5h": {
+        "name": "Plan-Nutzung 5-Stunden-Fenster"
+      },
+      "usage_week": {
+        "name": "Plan-Nutzung Wochenfenster"
+      },
+      "reset_5h": {
+        "name": "Reset 5-Stunden-Fenster"
+      },
+      "reset_week": {
+        "name": "Reset Wochenfenster"
+      },
+      "usage_updated": {
+        "name": "Nutzung aktualisiert"
+      },
+      "credit_used": {
+        "name": "Guthaben verbraucht"
+      },
+      "credit_remaining": {
+        "name": "Guthaben übrig"
+      },
+      "credit_limit": {
+        "name": "Guthaben-Limit"
+      },
+      "credit_reset": {
+        "name": "Guthaben-Reset"
+      },
+      "usage_source": {
+        "name": "Nutzungsquelle",
+        "state": {
+          "statusline": "Statuszeile",
+          "api": "Usage-API"
+        }
+      }
     }
   },
   "services": {
@@ -43,9 +84,18 @@
       "name": "Auftrag ausführen",
       "description": "Führt im Add-on einen Claude-Code-Auftrag mit einem Profil aus und gibt das Ergebnis zurück.",
       "fields": {
-        "profile": {"name": "Profil", "description": "Name eines Profils im Add-on (z. B. read, log-digest)."},
-        "prompt": {"name": "Auftrag", "description": "Aufgabe für Claude Code."},
-        "timeout": {"name": "Zeitlimit", "description": "Maximale Laufzeit; das Profil begrenzt zusätzlich."}
+        "profile": {
+          "name": "Profil",
+          "description": "Name eines Profils im Add-on (z. B. read, log-digest)."
+        },
+        "prompt": {
+          "name": "Auftrag",
+          "description": "Aufgabe für Claude Code."
+        },
+        "timeout": {
+          "name": "Zeitlimit",
+          "description": "Maximale Laufzeit; das Profil begrenzt zusätzlich."
+        }
       }
     }
   }

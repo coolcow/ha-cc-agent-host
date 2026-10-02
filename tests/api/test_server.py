@@ -167,3 +167,71 @@ def test_context_failure_reported(env, http, monkeypatch):
     code, r = http("POST", "/run", {"profile": "log", "prompt": "x"})
     assert code == 500 and "websocket auth failed" in r["error"]
     assert list(env["jobs"].iterdir()) == []
+
+
+def usage_api_env(env, monkeypatch, expires_in=3600, status=200):
+    import threading as th
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    calls = []
+
+    class Fake(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            calls.append(self.headers.get("Authorization"))
+            body = json.dumps({
+                "five_hour": {"utilization": 27.0, "resets_at": "2026-10-02T11:20:00.706150+00:00"},
+                "seven_day": {"utilization": 4.0, "resets_at": "2026-10-08T20:00:00+00:00"},
+                "iguana_necktie": {"utilization": 12.1, "resets_at": "2026-11-05T07:59:00+00:00",
+                                   "limit_dollars": 250, "used_dollars": 30.27, "remaining_dollars": 219.73},
+                "extra_usage": {"is_enabled": False},
+                "seven_day_breakdown": {"rows": [{"key": "claude_code", "percent": 50}]}}).encode()
+            self.send_response(status)
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    s = env["server"]
+    monkeypatch.setattr(s, "USAGE_API_URL", f"http://127.0.0.1:{srv.server_address[1]}/usage")
+    monkeypatch.setattr(s, "INTERACTIVE_CREDENTIALS", env["data"] / "credentials.json")
+    import time
+    (env["data"] / "credentials.json").write_text(json.dumps(
+        {"claudeAiOauth": {"accessToken": "tok", "expiresAt": (time.time() + expires_in) * 1000}}))
+    (env["data"] / "options.json").write_text(json.dumps({"usage_api": True}))
+    s._usage_cache.update(at=0.0, data=None, refresh_at=0.0)
+    return calls
+
+
+def test_usage_api_off_by_default(env, http):
+    assert http("GET", "/usage")[1]["source"] == "statusline"
+
+
+def test_usage_api(env, http, monkeypatch):
+    calls = usage_api_env(env, monkeypatch)
+    u = http("GET", "/usage")[1]
+    assert u["source"] == "api" and u["available"] is True
+    assert u["rate_limits"]["five_hour"] == {"used_percentage": 27.0, "resets_at": 1790940000}
+    assert u["credits"] == [{"key": "iguana_necktie", "used": 30.27, "limit": 250, "remaining": 219.73,
+                             "used_percentage": 12.1, "resets_at": 1793865540}]
+    assert u["weekly_breakdown"] == {"claude_code": 50}
+    http("GET", "/usage")
+    assert calls == ["Bearer tok"]  # cached for 5 minutes
+
+
+def test_usage_api_refreshes_expiring_token(env, http, monkeypatch):
+    usage_api_env(env, monkeypatch, expires_in=60)
+    refreshed = []
+    monkeypatch.setattr(env["server"], "refresh_interactive_login", lambda: refreshed.append(1))
+    http("GET", "/usage")
+    assert refreshed == [1]
+
+
+def test_usage_api_error_keeps_stale_values(env, http, monkeypatch):
+    usage_api_env(env, monkeypatch)
+    http("GET", "/usage")
+    env["server"]._usage_cache["at"] = 0.0
+    (env["data"] / "credentials.json").write_text("{}")
+    u = http("GET", "/usage")[1]
+    assert u["stale"] is True and u["rate_limits"]["five_hour"]["used_percentage"] == 27.0

@@ -1,5 +1,5 @@
 name: CC Agent Host
-version: "0.2.1"
+version: "0.3.0"
 slug: cc_agent_host
 description: Runs the official Claude Code CLI inside Home Assistant with your own subscription
 arch:
@@ -35,5 +35,7 @@ discovery:
 
 options:
   remote_control: false
+  usage_api: false
 schema:
   remote_control: bool
+  usage_api: bool

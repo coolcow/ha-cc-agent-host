@@ -26,6 +26,7 @@ import threading
 import time
 import urllib.request
 import uuid
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -50,6 +51,9 @@ API_TOKEN_FILE = DATA / "api_token"
 JOB_TOKEN_FILE = DATA / "job_token"
 AUDIT_LOG = DATA / "audit.log"
 INTERACTIVE_CREDENTIALS = DATA / "claude" / ".credentials.json"
+OPTIONS_FILE = DATA / "options.json"
+USAGE_API_URL = ENV("CC_USAGE_API_URL", "https://api.anthropic.com/api/oauth/usage")
+USAGE_API_TTL = 300
 
 MAX_BODY = 64 * 1024
 MAX_PROMPT = 16 * 1024
@@ -369,12 +373,95 @@ def claude_version():
     return _claude_version
 
 
+def option(name, default=None):
+    try:
+        return json.loads(OPTIONS_FILE.read_text()).get(name, default)
+    except (FileNotFoundError, ValueError):
+        return default
+
+
 def usage():
+    if option("usage_api", False):
+        return usage_api()
+    return usage_statusline()
+
+
+def usage_statusline():
     try:
         d = json.loads(USAGE_FILE.read_text())
     except (FileNotFoundError, ValueError):
         return {"source": "statusline", "available": False}
     return {"source": "statusline", "available": True, **d}
+
+
+# --- opt-in: usage API (option "usage_api") ------------------------------------------------
+# Reads the access token of the interactive sign-in to query Anthropic's (undocumented) plan usage
+# endpoint, which also reports usage credits. The token is only sent to api.anthropic.com and never
+# leaves the add-on otherwise; refreshing is left to Claude Code itself (a tiny prompt).
+
+_usage_cache = {"at": 0.0, "data": None, "refresh_at": 0.0}
+_usage_lock = threading.Lock()
+
+
+def interactive_token():
+    cred = json.loads(INTERACTIVE_CREDENTIALS.read_text())["claudeAiOauth"]
+    return cred["accessToken"], cred.get("expiresAt", 0) / 1000
+
+
+def refresh_interactive_login():
+    """Let Claude Code refresh its own token with a minimal prompt (rate-limited)."""
+    if time.time() - _usage_cache["refresh_at"] < 600:
+        return
+    _usage_cache["refresh_at"] = time.time()
+    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": ENV("HOME", "/data/home"),
+           "CLAUDE_CONFIG_DIR": str(DATA / "claude"), "DISABLE_AUTOUPDATER": "1", "LANG": "C.UTF-8"}
+    subprocess.run([CLAUDE, "-p", "ok", "--model", "haiku", "--max-turns", "1", "--tools", "",
+                    "--no-session-persistence"], env=env, cwd="/tmp", capture_output=True, timeout=120)
+
+
+def usage_api():
+    with _usage_lock:
+        if _usage_cache["data"] and time.time() - _usage_cache["at"] < USAGE_API_TTL:
+            return _usage_cache["data"]
+        try:
+            token, expires = interactive_token()
+            if expires - time.time() < 900:
+                refresh_interactive_login()
+                token, expires = interactive_token()
+            req = urllib.request.Request(USAGE_API_URL, headers={
+                "Authorization": "Bearer " + token, "anthropic-beta": "oauth-2025-04-20",
+                "User-Agent": "cc-agent-host"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                raw = json.loads(r.read())
+            data = {"source": "api", "available": True, **parse_usage_api(raw)}
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as e:
+            data = {"source": "api", "available": False, "error": type(e).__name__}
+            if _usage_cache["data"]:  # keep the last good values, flagged as stale
+                data = {**_usage_cache["data"], "stale": True, "error": type(e).__name__}
+            return data
+        _usage_cache.update(at=time.time(), data=data)
+        return data
+
+
+def parse_usage_api(raw):
+    def epoch(s):
+        try:
+            return int(datetime.fromisoformat(s).timestamp())
+        except (TypeError, ValueError):
+            return None
+
+    limits = {}
+    for key in ("five_hour", "seven_day"):
+        v = raw.get(key) or {}
+        if v.get("utilization") is not None:
+            limits[key] = {"used_percentage": v["utilization"], "resets_at": epoch(v.get("resets_at"))}
+    credits = [{"key": k, "used": v.get("used_dollars"), "limit": v.get("limit_dollars"),
+                "remaining": v.get("remaining_dollars"), "used_percentage": v.get("utilization"),
+                "resets_at": epoch(v.get("resets_at"))}
+               for k, v in raw.items() if isinstance(v, dict) and v.get("limit_dollars") is not None]
+    breakdown = {r["key"]: r.get("percent") for r in (raw.get("seven_day_breakdown") or {}).get("rows") or []}
+    return {"updated_at": int(time.time()), "rate_limits": limits, "credits": credits,
+            "weekly_breakdown": breakdown}
 
 
 class Handler(BaseHTTPRequestHandler):

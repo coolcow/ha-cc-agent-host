@@ -60,8 +60,24 @@ Reachable only from the internal Home Assistant network, with a bearer token tha
 to the companion integration. `GET /status`, `GET /profiles`, `GET /usage`,
 `POST /run {"profile": "...", "prompt": "...", "timeout": 300}`.
 
-`/usage` returns the plan usage (5-hour and weekly windows) as reported by Claude Code's status line in
-the interactive session; it never reads credentials.
+`/usage` returns the plan usage, see the next section.
+
+## Plan usage
+
+Two sources, chosen with the option **Full plan usage via usage API**:
+
+| | Status line (default) | Usage API (opt-in) |
+|---|---|---|
+| Data | 5-hour and weekly usage, reset times | same, plus usage credits and the weekly breakdown (Claude Code, chat, …) |
+| Freshness | only while the interactive session is used | every 5 minutes, also when idle |
+| Credentials | never touched | the add-on reads the access token of your interactive sign-in |
+| Stability | official Claude Code feature | undocumented endpoint, may change or disappear |
+
+**Why the usage API is off by default.** To query it, add-on code has to read the access token of your
+Claude sign-in. Anthropic's terms say third-party software must not collect, store or intermediate
+Claude.ai credentials, and the endpoint itself is not a documented public API. The add-on keeps the
+risk small (the token stays inside the add-on, is only sent to `api.anthropic.com`, and refreshing is
+left to Claude Code itself), but whether that is acceptable is your decision, so it is opt-in.
 
 ## Long links
 

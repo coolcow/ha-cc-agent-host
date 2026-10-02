@@ -1,0 +1,19 @@
+configuration:
+  remote_control:
+    name: Remote Control
+    description: >-
+      Startet die dauerhafte Sitzung mit Claude Code Remote Control, damit sie aus der
+      Claude-App und auf claude.ai/code gesteuert werden kann. Wirkt nach der Anmeldung
+      und einem Neustart des Add-ons.
+  usage_api:
+    name: Vollständige Plan-Nutzung über die Usage-API (bewusst einschalten)
+    description: >-
+      Absichtlich standardmäßig aus. Eingeschaltet liest das Add-on das Zugangstoken
+      deiner interaktiven Anmeldung, um Anthropics Endpunkt für die Plan-Nutzung
+      abzufragen (5 Stunden, Woche und Guthaben), auch wenn du Claude Code gerade nicht
+      nutzt. Warum bewusst: Der Endpunkt ist keine dokumentierte öffentliche API und kann
+      sich ändern, und Anthropics Bedingungen schränken ein, wie Software von Dritten mit
+      Claude-Zugangsdaten umgehen darf. Das Token wird nur an api.anthropic.com gesendet.
+      Ausgeschaltet kommen die Werte aus der Statuszeile von Claude Code: Es werden keine
+      Zugangsdaten angefasst, die Werte aktualisieren sich aber nur bei Nutzung der
+      interaktiven Sitzung. Details in der Dokumentation.

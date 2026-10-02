@@ -108,3 +108,16 @@ async def test_auth_failure_starts_reauth(hass: HomeAssistant, aioclient_mock):
     await hass.async_block_till_done()
     assert entry.state is config_entries.ConfigEntryState.SETUP_ERROR
     assert any(f["context"]["source"] == "reauth" for f in hass.config_entries.flow.async_progress())
+
+
+async def test_credit_sensors_from_usage_api(hass: HomeAssistant, aioclient_mock):
+    usage = {**USAGE, "source": "api", "credits": [
+        {"key": "x", "used": 30.27, "limit": 250, "remaining": 219.73, "resets_at": 1793865540}]}
+    mock_api(aioclient_mock, usage=usage)
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=DOMAIN, data=DATA)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.cc_agent_host_usage_credit_used").state == "30.27"
+    assert hass.states.get("sensor.cc_agent_host_usage_credit_remaining").state == "219.73"
+    assert hass.states.get("sensor.cc_agent_host_usage_source").state == "api"

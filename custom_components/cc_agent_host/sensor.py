@@ -20,6 +20,11 @@ def _limit(usage: dict[str, Any], window: str, field: str) -> Any:
     return ((usage.get("rate_limits") or {}).get(window) or {}).get(field)
 
 
+def _credit(usage: dict[str, Any], field: str) -> Any:
+    credits = usage.get("credits") or []
+    return credits[0].get(field) if credits else None
+
+
 def _ts(value: Any) -> datetime | None:
     return datetime.fromtimestamp(value, UTC) if isinstance(value, int | float) else None
 
@@ -40,6 +45,21 @@ DESCRIPTIONS = (
                                value=lambda u: _ts(_limit(u, "five_hour", "resets_at"))),
     AgentHostSensorDescription(key="reset_week", device_class=SensorDeviceClass.TIMESTAMP,
                                value=lambda u: _ts(_limit(u, "seven_day", "resets_at"))),
+    AgentHostSensorDescription(key="credit_used", native_unit_of_measurement="USD",
+                               device_class=SensorDeviceClass.MONETARY, suggested_display_precision=2,
+                               value=lambda u: _credit(u, "used")),
+    AgentHostSensorDescription(key="credit_remaining", native_unit_of_measurement="USD",
+                               device_class=SensorDeviceClass.MONETARY, suggested_display_precision=2,
+                               value=lambda u: _credit(u, "remaining")),
+    AgentHostSensorDescription(key="credit_limit", native_unit_of_measurement="USD",
+                               device_class=SensorDeviceClass.MONETARY, entity_category=EntityCategory.DIAGNOSTIC,
+                               value=lambda u: _credit(u, "limit")),
+    AgentHostSensorDescription(key="credit_reset", device_class=SensorDeviceClass.TIMESTAMP,
+                               entity_category=EntityCategory.DIAGNOSTIC,
+                               value=lambda u: _ts(_credit(u, "resets_at"))),
+    AgentHostSensorDescription(key="usage_source", entity_category=EntityCategory.DIAGNOSTIC,
+                               device_class=SensorDeviceClass.ENUM, options=["statusline", "api"],
+                               value=lambda u: u.get("source")),
     AgentHostSensorDescription(key="usage_updated", device_class=SensorDeviceClass.TIMESTAMP,
                                entity_category=EntityCategory.DIAGNOSTIC,
                                value=lambda u: _ts(u.get("updated_at"))),
