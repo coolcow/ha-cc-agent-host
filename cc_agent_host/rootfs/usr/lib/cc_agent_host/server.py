@@ -203,8 +203,152 @@ def ctx_ha_config(job_dir, opts):
     return f"ha_config/: {count} Home Assistant configuration files (secrets and .storage excluded)"
 
 
+HISTORY_DOMAINS = ["binary_sensor", "cover", "light", "media_player", "person", "climate", "vacuum",
+                   "lawn_mower", "lock", "fan", "alarm_control_panel"]
+HISTORY_SENSOR_CLASSES = ["temperature", "humidity", "power", "carbon_dioxide", "pm25", "illuminance"]
+HISTORY_SKIP_BINARY = ["problem", "battery", "connectivity", "update", "safety", "running"]
+HISTORY_STEPS = {"°C": 0.5, "°F": 1, "%": 1, "ppm": 25, "µg/m³": 5}
+AREA_TEMPLATE = "{{ entities | map('area_name') | map('default', '', true) | list | tojson }}"
+
+
+def supervisor_post(path, body):
+    req = urllib.request.Request(SUPERVISOR + path, data=json.dumps(body).encode(), method="POST", headers={
+        "Authorization": "Bearer " + ENV("SUPERVISOR_TOKEN", ""), "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read(MAX_CONTEXT)
+
+
+def history_select(states, opts):
+    """Entity ids for ha_history: domains, sensor device classes, include/exclude globs."""
+    domains = opts.get("domains", HISTORY_DOMAINS)
+    classes = opts.get("sensor_device_classes", HISTORY_SENSOR_CLASSES)
+    skip_binary = opts.get("skip_binary_device_classes", HISTORY_SKIP_BINARY)
+    include, exclude = opts.get("include", []), opts.get("exclude", [])
+    out = []
+    for s in states:
+        e, attrs = s["entity_id"], s.get("attributes", {})
+        domain, dc = e.split(".")[0], attrs.get("device_class")
+        if any(fnmatch.fnmatch(e, p) for p in exclude):
+            continue
+        if (any(fnmatch.fnmatch(e, p) for p in include)
+                or (domain in domains and not (domain == "binary_sensor" and dc in skip_binary))
+                or (domain == "sensor" and dc in classes and attrs.get("unit_of_measurement"))):
+            out.append(e)
+    return out
+
+
+def history_round(value, unit, steps):
+    """Rounds noise away: fixed step per unit, otherwise two significant digits."""
+    if unit in steps:
+        return round(round(value / steps[unit]) * steps[unit], 2)
+    return float(f"{value:.2g}") if value else 0.0
+
+
+def history_debounce(points, min_duration):
+    """Drops states that lasted less than min_duration seconds (glitches like brief unavailable)."""
+    if min_duration <= 0:
+        return points
+    kept = [p for p, nxt in zip(points, points[1:], strict=False) if (nxt[0] - p[0]).total_seconds() >= min_duration]
+    return kept + points[-1:]
+
+
+def history_lines(points, unit, bucket, steps, tz):
+    """Compact timeline in local time. Without unit: every state change. With unit: numbers as
+    min-max per bucket (labelled with its first change), listed when the text changes;
+    non-numeric states (unavailable …) in between."""
+    lines, prev, current = [], None, None  # current: [label time, bucket key, lo, hi]
+
+    def emit(when, text):
+        nonlocal prev
+        if text != prev:
+            lines.append(f"{when:%a %d.%m %H:%M} {text}")
+            prev = text
+
+    def flush():
+        if current:
+            when, _, lo, hi = current
+            emit(when, f"{lo:g}" if lo == hi else f"{lo:g}-{hi:g}")
+
+    for changed, state in points:
+        t = changed.astimezone(tz)
+        try:
+            v = history_round(float(state), unit, steps) if unit else None
+        except ValueError:
+            v = None
+        if v is None:
+            flush()
+            current = None
+            emit(t, state)
+            continue
+        k = t.replace(minute=t.minute // bucket * bucket, second=0, microsecond=0)
+        if current and current[1] == k:
+            current = [current[0], k, min(current[2], v), max(current[3], v)]
+        else:
+            flush()
+            current = [t, k, v, v]
+    flush()
+    return lines
+
+
+def ctx_ha_history(job_dir, opts):
+    """Recorder history of selected entities as compact per-area timelines (local time)."""
+    from datetime import UTC, timedelta
+    from urllib.parse import quote, urlencode
+    from zoneinfo import ZoneInfo
+
+    hours = min(float(opts.get("hours", 24)), 240)
+    bucket = max(1, min(int(opts.get("bucket_minutes", 10)), 60))
+    steps = {**HISTORY_STEPS, **opts.get("steps", {})}
+    min_duration = float(opts.get("min_duration_s", 0))
+    states = json.loads(supervisor_get("/core/api/states"))
+    meta = {s["entity_id"]: s.get("attributes", {}) for s in states}
+    selected = history_select(states, opts)
+    tz = ZoneInfo(json.loads(supervisor_get("/core/api/config")).get("time_zone") or "UTC")
+    areas = dict(zip(selected, json.loads(supervisor_post(
+        "/core/api/template", {"template": AREA_TEMPLATE, "variables": {"entities": selected}})), strict=True))
+    end = datetime.now(UTC)
+    start = end - timedelta(hours=hours)
+    per_area, count = {}, 0
+    for i in range(0, len(selected), 50):
+        query = urlencode({"filter_entity_id": ",".join(selected[i:i + 50]), "end_time": end.isoformat(),
+                           "minimal_response": "", "no_attributes": "", "significant_changes_only": ""})
+        for hist in json.loads(supervisor_get(f"/core/api/history/period/{quote(start.isoformat())}?{query}")):
+            if not hist:
+                continue
+            e = hist[0]["entity_id"]
+            attrs = meta.get(e, {})
+            unit = attrs.get("unit_of_measurement") or ""
+            points = history_debounce([(datetime.fromisoformat(h["last_changed"]), h["state"]) for h in hist],
+                                      min_duration)
+            lines = history_lines(points, unit, bucket, steps, tz)
+            head = f"## {e} | {attrs.get('friendly_name') or ''}" + (f" | {unit}" if unit else "")
+            per_area.setdefault(areas.get(e) or "", []).append((head, lines))
+            count += 1
+    target = job_dir / "ha_history"
+    target.mkdir()
+    index = [f"# History {start.astimezone(tz):%a %d.%m %H:%M} – {end.astimezone(tz):%a %d.%m %H:%M} ({tz})",
+             "", f"One file per area. Numbers: min-max per {bucket} min, listed only when they change; "
+             "other states: each change" + (f" lasting at least {min_duration:g} s" if min_duration else "")
+             + ". First line of each entity = state at the start.", ""]
+    total = 0
+    for area in sorted(per_area, key=lambda a: (a == "", a)):
+        name = re.sub(r"[^a-z0-9]+", "_", area.lower().translate(str.maketrans("äöüß", "aous"))).strip("_")
+        name = name or "no_area"
+        text = "\n\n".join(h + "\n" + "\n".join(lines) for h, lines in per_area[area]) + "\n"
+        if total + len(text) > MAX_CONTEXT:
+            index.append(f"- (truncated: further areas left out, context limit {MAX_CONTEXT} bytes)")
+            break
+        (target / f"{name}.txt").write_text(text)
+        total += len(text)
+        index.append(f"- {name}.txt: {area or 'no area'} – " + ", ".join(
+            f"{h.split(' | ')[0][3:]} ({len(lines)})" for h, lines in per_area[area]))
+    (target / "INDEX.md").write_text("\n".join(index) + "\n")
+    return (f"ha_history/: recorder history of {count} entities over the last {hours:g} h, one file per area, "
+            "overview with line counts in ha_history/INDEX.md")
+
+
 CONTEXT_PROVIDERS = {"ha_log": ctx_ha_log, "ha_system_log": ctx_ha_system_log,
-                     "ha_states": ctx_ha_states, "ha_config": ctx_ha_config}
+                     "ha_states": ctx_ha_states, "ha_config": ctx_ha_config, "ha_history": ctx_ha_history}
 
 
 # --- jobs -------------------------------------------------------------------------------

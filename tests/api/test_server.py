@@ -169,6 +169,76 @@ def test_context_failure_reported(env, http, monkeypatch):
     assert list(env["jobs"].iterdir()) == []
 
 
+HISTORY_STATES = [
+    {"entity_id": "sensor.bad_feuchte", "state": "70", "attributes": {
+        "device_class": "humidity", "unit_of_measurement": "%", "friendly_name": "Bad Feuchte"}},
+    {"entity_id": "light.bad", "state": "on", "attributes": {"friendly_name": "Bad Licht"}},
+    {"entity_id": "binary_sensor.batterie", "state": "off", "attributes": {"device_class": "battery"}},
+    {"entity_id": "sensor.cpu", "state": "3", "attributes": {"unit_of_measurement": "%"}},
+    {"entity_id": "switch.tor", "state": "off", "attributes": {}},
+    {"entity_id": "light.privat", "state": "off", "attributes": {}},
+]
+
+
+def test_history_select(env):
+    sel = env["server"].history_select(HISTORY_STATES, {"include": ["switch.tor"], "exclude": ["*privat*"]})
+    assert sel == ["sensor.bad_feuchte", "light.bad", "switch.tor"]
+
+
+def history_points(*pairs):
+    from datetime import UTC, datetime
+    return [(datetime(2026, 10, 3, h, m, s, tzinfo=UTC), v) for (h, m, s), v in pairs]
+
+
+def test_history_lines_numbers(env):
+    from zoneinfo import ZoneInfo
+    pts = history_points(((7, 0, 0), "55.2"), ((7, 3, 0), "61.6"), ((7, 8, 0), "64"),
+                         ((7, 12, 0), "64.4"), ((7, 25, 0), "unavailable"), ((7, 26, 0), "63"))
+    lines = env["server"].history_lines(pts, "%", 10, env["server"].HISTORY_STEPS, ZoneInfo("Europe/Paris"))
+    assert lines == ["Sat 03.10 09:00 55-64", "Sat 03.10 09:12 64", "Sat 03.10 09:25 unavailable",
+                     "Sat 03.10 09:26 63"]
+
+
+def test_history_lines_states_and_debounce(env):
+    from zoneinfo import ZoneInfo
+    srv = env["server"]
+    pts = history_points(((6, 0, 0), "off"), ((6, 30, 0), "unavailable"), ((6, 30, 5), "off"),
+                         ((6, 40, 0), "on"), ((6, 45, 0), "on"), ((7, 0, 0), "off"))
+    lines = srv.history_lines(srv.history_debounce(pts, 60), "", 10, {}, ZoneInfo("UTC"))
+    assert lines == ["Sat 03.10 06:00 off", "Sat 03.10 06:40 on", "Sat 03.10 07:00 off"]
+    assert srv.history_round(3068.1, "W", {}) == 3100 and srv.history_round(21.3, "°C", srv.HISTORY_STEPS) == 21.5
+
+
+def test_history_context(env, monkeypatch):
+    srv = env["server"]
+    hist = [[{"entity_id": "sensor.bad_feuchte", "state": "55", "last_changed": "2026-10-03T07:00:00+00:00"},
+             {"state": "68", "last_changed": "2026-10-03T07:05:00+00:00"}],
+            [{"entity_id": "light.bad", "state": "off", "last_changed": "2026-10-03T07:00:00+00:00"}]]
+    for h in hist:  # minimal_response: entity_id only in the first entry
+        for later in h[1:]:
+            later["entity_id"] = h[0]["entity_id"]
+    calls = []
+
+    def get(path, *a, **k):
+        calls.append(path)
+        if path == "/core/api/states":
+            return json.dumps(HISTORY_STATES).encode()
+        if path == "/core/api/config":
+            return b'{"time_zone": "Europe/Paris"}'
+        return json.dumps(hist).encode()
+    monkeypatch.setattr(srv, "supervisor_get", get)
+    monkeypatch.setattr(srv, "supervisor_post", lambda path, body: json.dumps(
+        ["Badezimmer" if e != "switch.tor" else "" for e in body["variables"]["entities"]]).encode())
+    job = env["tmp"] / "probe3"
+    job.mkdir()
+    note = srv.ctx_ha_history(job, {"hours": 24, "include": ["switch.tor"]})
+    assert "2 entities" in note
+    assert "filter_entity_id=sensor.bad_feuchte%2Clight.bad%2Cswitch.tor" in calls[-1]
+    text = (job / "ha_history" / "badezimmer.txt").read_text()
+    assert "## sensor.bad_feuchte | Bad Feuchte | %\nSat 03.10 09:00 55-68" in text
+    assert "badezimmer.txt: Badezimmer" in (job / "ha_history" / "INDEX.md").read_text()
+
+
 def usage_api_env(env, monkeypatch, expires_in=3600, status=200):
     import threading as th
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

@@ -42,8 +42,15 @@ added on start; existing files are never overwritten. Defaults:
 | `log-digest` | Read, Grep, Glob | Home Assistant system log (errors, warnings) |
 
 Profile keys: `description`, `model` (default `sonnet`), `max_turns`, `timeout` (seconds, max 1800),
-`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_system_log`, `ha_states`, `ha_config`; `ha_log` needs the Supervisor role `homeassistant`),
+`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_system_log`, `ha_states`, `ha_history`, `ha_config`; `ha_log` needs the Supervisor role `homeassistant`),
 `system_prompt`.
+
+Context `ha_history` writes the recorder history as compact timelines, one file per area
+(`ha_history/<area>.txt`, overview in `ha_history/INDEX.md`, local time). Options: `hours` (default 24,
+max 240), `bucket_minutes` (numbers as min–max per bucket, default 10), `min_duration_s` (drop states
+shorter than this, e.g. brief `unavailable`), `domains`, `sensor_device_classes`,
+`skip_binary_device_classes`, `include` / `exclude` (entity id globs), `steps` (rounding per unit, e.g.
+`{"°C": 0.5}`; other units: two significant digits).
 
 ### How jobs are isolated
 

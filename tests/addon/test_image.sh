@@ -25,6 +25,7 @@ version="$(grep -oP '^ARG CLAUDE_CODE_VERSION=\K.*' cc_agent_host/Dockerfile)"
 check "Claude Code $version runs" "claude --version | grep -q '^$version'"
 check "claude binary root-owned, not writable by others" \
     "[ \"\$(stat -c %U:%a /usr/local/bin/claude)\" = root:755 ]"
+check "time zones available (ha_history)" "python3 -c \"from zoneinfo import ZoneInfo; ZoneInfo('Europe/Paris')\""
 check "auto-updater disabled" '[ "$DISABLE_AUTOUPDATER" = 1 ]'
 check "login stored in /data" '[ "$CLAUDE_CONFIG_DIR" = /data/claude ] && [ "$HOME" = /data/home ]'
 check "nginx config valid" "mkdir -p /run/ttyd && nginx -t -c /etc/nginx/nginx.conf"

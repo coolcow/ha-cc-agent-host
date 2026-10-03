@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Context provider `ha_history`: recorder history of selected entities as compact per-area timelines
+  (numbers as min–max per time bucket, glitches shorter than `min_duration_s` dropped, area names via the
+  template API). Selection by domain, sensor device class and include/exclude globs.
+
 ## 0.4.0
 
 - `/status` reports the plan of the sign-in (`plan`, `subscription`, `tier`, `multiplier` relative to Pro).
