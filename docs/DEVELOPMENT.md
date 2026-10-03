@@ -11,10 +11,28 @@
 
 ## Local installation (Home Assistant OS)
 
+Only on the owner's decision. Needs SSH access to the device (Terminal & SSH app).
+
+```bash
+tools/deploy.sh <ha-host> --dry-run        # guards only, prints the remote commands
+tools/deploy.sh <ha-host> [addon|integration|all] [--redeploy]
+tools/smoke-device.sh <ha-host>            # read-only: versions, add-on state, job API, sensors
+```
+
+`tools/deploy.sh` refuses a dirty working tree, runs the full `scripts/agent/check`, requires a version newer
+than the installed one (`--redeploy` allows the same version, never an older one), then copies the
+*committed* files (`git archive`) to `/local_apps/cc_agent_host` and `/homeassistant/custom_components/cc_agent_host`
+(staged, so removed files do not linger) and runs `ha store reload` plus `ha apps install|update|rebuild
+local_cc_agent_host` (Supervisor refuses `rebuild` after a version change). It never restarts Home
+Assistant; a new integration version needs `ha core restart`, done by the owner. Afterwards it runs the
+smoke test. Both scripts are tested against a fake device in `tests/repo/test_device_tools.py`.
+
+Manual equivalent:
+
 ```bash
 tar -cf - --owner=0 --group=0 cc_agent_host | ssh <ha-host> 'tar -xf - -C /local_apps'
 ssh <ha-host> 'ha store reload && ha apps install local_cc_agent_host'   # first time
-ssh <ha-host> 'ha store reload && ha apps rebuild local_cc_agent_host'   # after changes
+ssh <ha-host> 'ha store reload && ha apps update local_cc_agent_host'    # after a version bump
 ```
 
 Raise `version` in `cc_agent_host/config.yaml` (add-on) or `custom_components/cc_agent_host/manifest.json`
@@ -35,7 +53,7 @@ failure digest plus the full log in `.agent-logs/` on failure). Setup once: `scr
 | `integration` | pytest-homeassistant-custom-component (Python 3.14, mocked API; container if needed) | `scripts/agent/test integration` |
 | `image` | builds, Claude Code runs, nginx config valid, ttyd socket mode, services, no ports; job isolation | `scripts/agent/check image` |
 | – | hassfest; HACS validation (public repository only) | CI only |
-| On device | install on the device, manual checklist per phase | `docs/PLAN.md` |
+| On device | read-only smoke test after installing (versions, state, job API, sensors) | `tools/smoke-device.sh <ha-host>` |
 
 `scripts/agent/check` runs all steps (fail-fast), `scripts/agent/check fast` only lint, repo and api.
 Narrow tests with pytest selectors: `scripts/agent/test tests/api/test_server.py -k profile`.
@@ -71,7 +89,5 @@ configuration (later possibly shared as blueprints in a separate repository).
 
 ## Installing the integration locally
 
-```bash
-scp -r custom_components/cc_agent_host <ha-host>:/homeassistant/custom_components/
-# restart Home Assistant; the add-on's discovery then offers the setup under Settings → Devices & services
-```
+`tools/deploy.sh <ha-host> integration` (see above), then restart Home Assistant; the add-on's discovery
+offers the setup under Settings → Devices & services.

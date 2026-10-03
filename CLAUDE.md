@@ -37,6 +37,8 @@ failure; CI runs the same commands.
 | Tests, narrowed | `scripts/agent/test api -k profile` · `scripts/agent/test tests/api/test_server.py::test_x` |
 | Version raised for changed parts | `scripts/agent/version-check [base]` (default `origin/main`) |
 | Latest CI failure of this branch | `scripts/agent/ci-failures` (needs `gh auth login`) |
+| Install on the owner's HA (**explicit instruction only**) | `tools/deploy.sh <ha-host> [addon\|integration] [--dry-run]` |
+| Read-only check of the installed add-on/integration | `tools/smoke-device.sh <ha-host>` (also explicit only: contacts the device) |
 | Pin a Claude Code version | `tools/bump-claude-code.sh [version]` (also raises add-on patch version + CHANGELOG) |
 
 Skills (`.claude/skills/`): `bump-claude-code`, `release-addon`, `ci-failures`. A PostToolUse hook lints
@@ -92,7 +94,8 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
 - Profiles are YAML in the image and extendable by the user under `/addon_configs/…/profiles/`; schema in
   `normalize_profile()` of server.py.
 - HACS validation only runs in CI once the repository is public; file-level HACS checks live in `tests/repo`.
-- Local installation on a device: `docs/DEVELOPMENT.md` (only on explicit instruction, see above).
+- Local installation on a device: `tools/deploy.sh` (guards: clean tree, full check, newer version; never
+  restarts HA), details in `docs/DEVELOPMENT.md`. Only on explicit instruction, see above.
 
 Background docs: `docs/PLAN.md` (goals, decisions A/B/C, permissions table, backlog),
 `docs/DEVELOPMENT.md` (tests, CI, versioning), `docs/agentic-roadmap.md` (tooling decisions).
