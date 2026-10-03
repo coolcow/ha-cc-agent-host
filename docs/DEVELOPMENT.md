@@ -21,13 +21,23 @@ Raise `version` in `cc_agent_host/config.yaml` and add a `CHANGELOG.md` entry fo
 
 ## Tests
 
-| Level | What | How |
+One entry point for humans, agents and CI: `scripts/agent/check` (one line per step on success, a capped
+failure digest plus the full log in `.agent-logs/` on failure). Setup once: `scripts/setup` (creates
+`.venv` with ruff, pytest, pyyaml); lint, integration and image steps need Docker.
+
+| Step | What | Command |
 |---|---|---|
-| Lint | shell (shellcheck), Dockerfile (hadolint), YAML (yamllint); later Python (ruff) | `tools/lint.sh` (docker) |
-| Image | builds, Claude Code runs, nginx config valid, ttyd socket mode, services present, no ports | `tests/addon/test_image.sh` (docker) |
-| Job API | pytest: auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens | `pytest tests/api` |
-| Integration | pytest-homeassistant-custom-component (Python 3.14, mocked API); hassfest; HACS validation in CI | `tools/test-integration.sh` (docker) |
+| `lint` | shellcheck, hadolint, yamllint (strict), actionlint, ruff | `scripts/agent/check lint` |
+| `repo` | consistency: versions, CHANGELOG, Dockerfile pin, translations, naming | `scripts/agent/test repo` |
+| `api` | job API (pytest): auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens | `scripts/agent/test api` |
+| `integration` | pytest-homeassistant-custom-component (Python 3.14, mocked API; container if needed) | `scripts/agent/test integration` |
+| `image` | builds, Claude Code runs, nginx config valid, ttyd socket mode, services, no ports; job isolation | `scripts/agent/check image` |
+| – | hassfest; HACS validation (public repository only) | CI only |
 | On device | install on the device, manual checklist per phase | `docs/PLAN.md` |
+
+`scripts/agent/check` runs all steps (fail-fast), `scripts/agent/check fast` only lint, repo and api.
+Narrow tests with pytest selectors: `scripts/agent/test tests/api/test_server.py -k profile`.
+Latest CI failure of the current branch: `scripts/agent/ci-failures` (needs `gh auth login`).
 
 ## CI (GitHub Actions)
 

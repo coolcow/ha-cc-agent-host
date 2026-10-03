@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Full check, fail-fast order: lint -> repo (consistency) -> api -> integration -> image.
+# Usage: scripts/agent/check [fast|all|lint|repo|api|integration|image ...]   (default: all)
+#   fast = lint repo api (seconds, no Python 3.14 / image build); all = everything (needs docker).
+# Success = one line per step. Failure = capped digest + log path. Exit code of the first failing step.
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
+
+steps=()
+for a in "${@:-all}"; do
+    case "$a" in
+        all) steps+=(lint repo api integration image) ;;
+        fast) steps+=(lint repo api) ;;
+        lint|repo|api|integration|image) steps+=("$a") ;;
+        *) echo "usage: $0 [fast|all|lint|repo|api|integration|image ...]" >&2; exit 64 ;;
+    esac
+done
+for s in lint repo api integration image; do
+    [[ " ${steps[*]} " == *" $s "* ]] || continue
+    if [[ $s == repo && ! -d "$ROOT/tests/repo" ]]; then continue; fi
+    "step_$s" || exit $?
+done

@@ -11,6 +11,14 @@ updates:
     commit-message:
       prefix: ci
 
+  # Fast-check tools (ruff, pytest, pyyaml)
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: test
+
   # Home Assistant test harness (pins the Home Assistant version the integration is tested against)
   - package-ecosystem: pip
     directory: /tests/integration

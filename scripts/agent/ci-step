@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# CI helper: run an agent wrapper, echo its (already condensed) output, append it to the GitHub step
+# summary and emit file annotations for lint findings. Exit code passed through.
+# Usage: scripts/agent/ci-step "<title>" <command> [args...]
+set -uo pipefail
+title="$1"; shift
+out=$("$@" 2>&1); rc=$?
+printf '%s\n' "$out"
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    { echo "### $( ((rc == 0)) && echo '✅' || echo '❌' ) $title"; echo '```'; printf '%s\n' "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+fi
+if [[ "${GITHUB_ACTIONS:-}" == true ]] && (( rc != 0 )); then
+    # "[tool] path:line:col: message" (shellcheck gcc, yamllint parsable, actionlint, ruff concise)
+    printf '%s\n' "$out" | sed -nE 's/^\[[a-z]+\] ([^ :]+):([0-9]+):([0-9]+): (.*)$/::error file=\1,line=\2,col=\3::\4/p' | head -n 50
+fi
+exit $rc

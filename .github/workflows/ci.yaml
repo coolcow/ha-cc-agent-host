@@ -44,9 +44,24 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - run: tools/lint.sh
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: scripts/agent/ci-step "Lint" scripts/agent/check lint
+      - name: Upload agent logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: agent-logs-lint
+          path: .agent-logs/
+          retention-days: 7
+          include-hidden-files: true
 
   api:
+    # Job API tests and repository consistency tests (both plain pytest, Python 3.12)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -54,8 +69,18 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
-      - run: pip install pytest pyyaml
-      - run: python -m pytest -q tests/api
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: scripts/agent/ci-step "Job API tests" scripts/agent/check repo api
+      - name: Upload agent logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: agent-logs-api
+          path: .agent-logs/
+          retention-days: 7
+          include-hidden-files: true
 
   integration:
     runs-on: ubuntu-latest
@@ -68,8 +93,15 @@ jobs:
           cache: pip
           cache-dependency-path: tests/integration/requirements.txt
       - run: pip install -r tests/integration/requirements.txt
-      # `python -m pytest` puts the repo root on sys.path (custom_components is imported from there)
-      - run: python -m pytest -q -o asyncio_mode=auto -o asyncio_default_fixture_loop_scope=function tests/integration
+      - run: scripts/agent/ci-step "Integration tests" scripts/agent/test integration
+      - name: Upload agent logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: agent-logs-integration
+          path: .agent-logs/
+          retention-days: 7
+          include-hidden-files: true
 
   hassfest:
     runs-on: ubuntu-latest
@@ -113,15 +145,17 @@ jobs:
         run: echo "add-on unchanged, aarch64 build skipped (runs nightly)"
       - if: ${{ steps.skip.outcome == 'skipped' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - name: Build
+      - name: Build, image and isolation tests
         if: ${{ steps.skip.outcome == 'skipped' }}
-        run: docker build -t cc-agent-host:${{ matrix.arch }} cc_agent_host
-      - name: Image tests
-        if: ${{ steps.skip.outcome == 'skipped' }}
-        run: tests/addon/test_image.sh cc-agent-host:${{ matrix.arch }}
-      - name: Isolation tests
-        if: ${{ steps.skip.outcome == 'skipped' }}
-        run: tests/addon/test_isolation.sh cc-agent-host:${{ matrix.arch }}
+        run: scripts/agent/ci-step "Image (${{ matrix.arch }})" scripts/agent/check image
+      - name: Upload agent logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: agent-logs-image-${{ matrix.arch }}
+          path: .agent-logs/
+          retention-days: 7
+          include-hidden-files: true
 
   gate:
     # Single stable check for branch protection: fails if any job failed or was cancelled

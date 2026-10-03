@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Fetch the failed steps of the latest CI run for the current branch, condensed.
+# Usage: scripts/agent/ci-failures [run-id]     Requires an authenticated `gh`.
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
+command -v gh >/dev/null || { echo "✗ gh CLI not installed"; exit 2; }
+gh auth status >/dev/null 2>&1 || { echo "✗ gh not authenticated – run: gh auth login"; exit 2; }
+branch=$(git -C "$ROOT" rev-parse --abbrev-ref HEAD)
+run="${1:-}"
+if [[ -z $run ]]; then
+    # Filter by workflow name: `--workflow ci.yaml` answers 404 for a workflow not yet on the default branch.
+    run=$(gh run list --branch "$branch" --limit 20 --json databaseId,status,conclusion,workflowName \
+          --jq 'map(select(.workflowName == "CI")) | .[0] // empty | "\(.databaseId) \(.status) \(.conclusion)"') \
+        || { echo "✗ gh run list failed (see error above)"; exit 2; }
+    [[ -z $run ]] && { echo "ℹ no CI runs for branch $branch"; exit 0; }
+    read -r id status conclusion <<<"$run"; run=$id
+    if [[ $status != completed ]]; then echo "ℹ run $run is $status – retry later (gh run watch $run)"; exit 0; fi
+    if [[ $conclusion == success ]]; then echo "✓ CI run $run on $branch succeeded"; exit 0; fi
+fi
+log=$(log_file ci-failures)
+gh run view "$run" --log-failed > "$log" 2>&1
+echo "✗ CI run $run ($branch) failed – failed steps:"
+gh run view "$run" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | "  job: \(.name) → " + ([.steps[] | select(.conclusion=="failure") | .name] | join(", "))'
+# Strip "<job>\t<step>\t<timestamp> " prefixes and ANSI, keep error-looking lines plus context.
+sed -E 's/^[^\t]*\t[^\t]*\t[0-9TZ:.-]+ //; s/\x1b\[[0-9;]*m//g' "$log" \
+    | grep -vE '^##\[group\]|^##\[endgroup\]|^(Run |shell: |env:|  [A-Z_]+: )' \
+    | grep -E -B2 -A8 '✗|FAIL|error|Error|AssertionError|^E  |##\[error\]' | cat -s > "$log.digest"
+cap "$log.digest" "$log"; rm -f "$log.digest"
+exit 1

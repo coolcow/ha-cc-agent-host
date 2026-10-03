@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Create .venv with the tools for the fast checks (ruff, pytest, pyyaml). Idempotent, non-interactive.
+# Integration and image tests run in Docker and need no setup beyond a working `docker`.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || { echo "✗ python3 >= 3.11 required" >&2; exit 1; }
+[[ -x .venv/bin/python ]] || python3 -m venv .venv
+.venv/bin/python -m pip install -q --disable-pip-version-check -r requirements-dev.txt
+echo "✓ .venv ready ($(.venv/bin/python --version), $(.venv/bin/ruff --version))"
+command -v docker >/dev/null && docker info >/dev/null 2>&1 || echo "ℹ docker not available: lint (shell/YAML/Dockerfile), integration and image checks need it"

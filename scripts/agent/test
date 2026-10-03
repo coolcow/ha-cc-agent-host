@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Run test suites, optionally narrowed.
+# Usage:
+#   scripts/agent/test                                   # repo + api + integration
+#   scripts/agent/test api                               # one suite: repo | api | integration | image
+#   scripts/agent/test api -k profile                    # suite + pytest args
+#   scripts/agent/test tests/api/test_server.py::test_x  # any pytest selector; suite from the path
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
+
+if (( $# == 0 )); then
+    rc=0
+    for s in repo api integration; do
+        if [[ $s == repo && ! -d "$ROOT/tests/repo" ]]; then continue; fi
+        "step_$s" || { r=$?; (( rc )) || rc=$r; }
+    done
+    exit $rc
+fi
+case "$1" in
+    repo|api|integration) s="$1"; shift; "step_$s" "$@" ;;
+    image) step_image ;;
+    tests/repo*) step_repo "$@" ;;
+    tests/api*) step_api "$@" ;;
+    tests/integration*) step_integration "$@" ;;
+    tests/addon*) step_image ;;
+    *) echo "usage: $0 [repo|api|integration|image|<tests/... selector>] [pytest args...]" >&2; exit 64 ;;
+esac
