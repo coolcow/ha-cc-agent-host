@@ -8,12 +8,15 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Dispatch CI for the new branch: pushes and pull requests made with GITHUB_TOKEN start no workflows
+  actions: write
 
 jobs:
   bump:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - run: tools/bump-claude-code.sh
       - name: Open pull request when the version changed
         env:
@@ -26,6 +29,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git commit -am "Bump Claude Code to $v"
+          git commit -am "build: bump Claude Code to $v"
           git push -u origin "$branch"
-          gh pr create --fill --title "Bump Claude Code to $v"
+          gh pr create --fill --title "build: bump Claude Code to $v"
+          gh workflow run ci.yaml --ref "$branch"

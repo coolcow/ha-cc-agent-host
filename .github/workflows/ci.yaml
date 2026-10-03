@@ -4,54 +4,102 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Nightly full run (incl. aarch64 image) catches upstream breakage: base image, Claude Code, Home Assistant
+  schedule:
+    - cron: "41 2 * * *"
+  # Also used by bump-claude-code.yaml: pull requests opened with GITHUB_TOKEN do not trigger workflows
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    # Decides whether the add-on image changed; the aarch64 build only runs then (private repo: minutes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      addon: ${{ steps.diff.outputs.addon }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          addon=true
+          if [[ $EVENT == pull_request || $EVENT == push ]] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            git diff --quiet "$BASE" HEAD -- cc_agent_host tests/addon .github/workflows/ci.yaml && addon=false
+          fi
+          echo "addon=$addon" | tee -a "$GITHUB_OUTPUT"
+
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - run: tools/lint.sh
 
   api:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - run: pip install pytest pyyaml
-      - run: pytest -q tests/api
+      - run: python -m pytest -q tests/api
 
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: tests/integration/requirements.txt
       - run: pip install -r tests/integration/requirements.txt
-      - run: pytest -q -o asyncio_mode=auto tests/integration
+      # `python -m pytest` puts the repo root on sys.path (custom_components is imported from there)
+      - run: python -m pytest -q -o asyncio_mode=auto -o asyncio_default_fixture_loop_scope=function tests/integration
 
   hassfest:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: home-assistant/actions/hassfest@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3  # master
 
   hacs:
+    # HACS reads hacs.json and manifest.json anonymously from raw.githubusercontent.com and needs a
+    # description, topics and brand assets: impossible for a private repository. Runs once it is public.
+    # Visibility via the API: scheduled runs carry no repository object in the event payload.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: hacs/action@main
+      - id: visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "private=$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)" | tee -a "$GITHUB_OUTPUT"
+      - if: ${{ steps.visibility.outputs.private == 'false' }}
+        uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa  # main
         with:
           category: integration
 
   image:
-    needs: [lint, api]
+    needs: [changes, lint, api]
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: amd64
@@ -59,10 +107,34 @@ jobs:
           - arch: aarch64
             runner: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - name: Skip aarch64 (add-on unchanged)
+        id: skip
+        if: ${{ matrix.arch == 'aarch64' && needs.changes.outputs.addon != 'true' }}
+        run: echo "add-on unchanged, aarch64 build skipped (runs nightly)"
+      - if: ${{ steps.skip.outcome == 'skipped' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Build
+        if: ${{ steps.skip.outcome == 'skipped' }}
         run: docker build -t cc-agent-host:${{ matrix.arch }} cc_agent_host
       - name: Image tests
+        if: ${{ steps.skip.outcome == 'skipped' }}
         run: tests/addon/test_image.sh cc-agent-host:${{ matrix.arch }}
       - name: Isolation tests
+        if: ${{ steps.skip.outcome == 'skipped' }}
         run: tests/addon/test_isolation.sh cc-agent-host:${{ matrix.arch }}
+
+  gate:
+    # Single stable check for branch protection: fails if any job failed or was cancelled
+    name: CI Gate
+    if: ${{ always() }}
+    needs: [changes, lint, api, integration, hassfest, hacs, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "job results: $RESULTS"
+          for r in $RESULTS; do
+            [[ $r == success || $r == skipped ]] || { echo "::error::a required job ended with: $r"; exit 1; }
+          done

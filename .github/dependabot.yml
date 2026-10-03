@@ -1,6 +1,28 @@
 version: 2
 updates:
+  # Actions are pinned to commit SHAs; Dependabot updates SHA and version comment together
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+
+  # Home Assistant test harness (pins the Home Assistant version the integration is tested against)
+  - package-ecosystem: pip
+    directory: /tests/integration
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: test
+
+  # Add-on base image (Claude Code itself is bumped by bump-claude-code.yaml)
+  - package-ecosystem: docker
+    directory: /cc_agent_host
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build

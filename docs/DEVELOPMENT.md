@@ -29,20 +29,22 @@ Raise `version` in `cc_agent_host/config.yaml` and add a `CHANGELOG.md` entry fo
 | Integration | pytest-homeassistant-custom-component (Python 3.14, mocked API); hassfest; HACS validation in CI | `tools/test-integration.sh` (docker) |
 | On device | install on the device, manual checklist per phase | `docs/PLAN.md` |
 
-## CI strategy (GitHub Actions, once published)
+## CI (GitHub Actions)
 
-- `ci.yaml` on push and pull request:
-  - lint job (shellcheck, hadolint, yamllint, ruff)
-  - build job, matrix amd64 + aarch64 (buildx with QEMU), then `tests/addon/test_image.sh` against
-    the built image
-  - pytest jobs for the job API and the integration *(when they exist)*
-  - hassfest and HACS validation for the integration *(when it exists)*
-- `bump-claude-code.yaml`, scheduled daily: runs `tools/bump-claude-code.sh` against the latest npm
-  release and opens a pull request (version, checksums, changelog). CI must pass before merge;
-  no auto-merge.
-- `release.yaml` on tag `v*`: builds multi-arch images and pushes them to GHCR. Later, set `image:`
-  in `config.yaml` so users pull prebuilt images instead of building on device.
-- Dependabot for GitHub Actions; actions pinned to commit SHAs.
+- `ci.yaml` on push to `main`, pull requests, nightly and on dispatch:
+  - `lint` (shellcheck, hadolint, yamllint, ruff), `api` (pytest, Python 3.12), `integration`
+    (pytest-homeassistant-custom-component, Python 3.14), `hassfest`
+  - `hacs` only once the repository is public (HACS cannot read a private repository)
+  - `image`: amd64 always; aarch64 (native arm runner) only when `cc_agent_host/` or `tests/addon/`
+    changed, and nightly. Builds the image and runs `tests/addon/test_image.sh` and `test_isolation.sh`.
+  - `CI Gate`: aggregates all jobs; the single check to require in branch protection.
+- `bump-claude-code.yaml`, daily: `tools/bump-claude-code.sh` pins the latest npm release (version,
+  checksums), raises the add-on patch version, adds the CHANGELOG entry, opens a pull request and
+  dispatches CI for it. No auto-merge.
+- `release.yaml` on tag `v*` *(planned)*: builds multi-arch images and pushes them to GHCR. Later, set
+  `image:` in `config.yaml` so users pull prebuilt images instead of building on device.
+- Dependabot for GitHub Actions (pinned to commit SHAs), the integration test harness and the base image.
+  Base image bumps need a version + CHANGELOG commit before merge.
 
 ## Versioning
 
