@@ -47,8 +47,8 @@ Profile keys: `description`, `model` (default `sonnet`), `max_turns`, `timeout` 
 
 Context `ha_history` writes the recorder history as compact timelines, one file per area
 (`ha_history/<area>.txt`, overview in `ha_history/INDEX.md`, local time). Options: `hours` (default 24,
-max 240), `bucket_minutes` (numbers as min–max per bucket, default 10), `min_duration_s` (drop states
-shorter than this, e.g. brief `unavailable`), `domains`, `sensor_device_classes`,
+max 240), `bucket_minutes` (numbers as min–max per bucket, default 10), `min_duration_s` (drop
+`unavailable`/`unknown` shorter than this), `domains`, `sensor_device_classes`,
 `skip_binary_device_classes`, `include` / `exclude` (entity id globs), `steps` (rounding per unit, e.g.
 `{"°C": 0.5}`; other units: two significant digits).
 

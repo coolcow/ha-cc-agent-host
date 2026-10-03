@@ -206,6 +206,12 @@ def test_history_lines_states_and_debounce(env):
                          ((6, 40, 0), "on"), ((6, 45, 0), "on"), ((7, 0, 0), "off"))
     lines = srv.history_lines(srv.history_debounce(pts, 60), "", 10, {}, ZoneInfo("UTC"))
     assert lines == ["Sat 03.10 06:00 off", "Sat 03.10 06:40 on", "Sat 03.10 07:00 off"]
+    impulse = history_points(((6, 0, 0), "off"), ((6, 0, 1), "on"), ((6, 0, 2), "off"))
+    assert len(srv.history_debounce(impulse, 60)) == 3
+    fast = history_points(((6, 0, 0), "800"), ((6, 0, 10), "1200"), ((6, 0, 20), "unavailable"),
+                          ((6, 0, 30), "900"), ((6, 5, 0), "unavailable"), ((6, 9, 0), "950"))
+    assert srv.history_lines(srv.history_debounce(fast, 60), "W", 10, {}, ZoneInfo("UTC")) == [
+        "Sat 03.10 06:00 800-1200", "Sat 03.10 06:05 unavailable", "Sat 03.10 06:09 950"]
     assert srv.history_round(3068.1, "W", {}) == 3100 and srv.history_round(21.3, "°C", srv.HISTORY_STEPS) == 21.5
 
 

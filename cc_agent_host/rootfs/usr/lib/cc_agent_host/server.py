@@ -249,10 +249,12 @@ def history_round(value, unit, steps):
 
 
 def history_debounce(points, min_duration):
-    """Drops states that lasted less than min_duration seconds (glitches like brief unavailable)."""
+    """Drops unavailable/unknown states that lasted less than min_duration seconds (connection
+    glitches); real states are always kept, however short."""
     if min_duration <= 0:
         return points
-    kept = [p for p, nxt in zip(points, points[1:], strict=False) if (nxt[0] - p[0]).total_seconds() >= min_duration]
+    kept = [p for p, nxt in zip(points, points[1:], strict=False)
+            if p[1] not in ("unavailable", "unknown") or (nxt[0] - p[0]).total_seconds() >= min_duration]
     return kept + points[-1:]
 
 
@@ -332,7 +334,8 @@ def ctx_ha_history(job_dir, opts):
     target.mkdir()
     index = [f"# History {start.astimezone(tz):%a %d.%m %H:%M} – {end.astimezone(tz):%a %d.%m %H:%M} ({tz})",
              "", f"One file per area. Numbers: min-max per {bucket} min, listed only when they change; "
-             "other states: each change" + (f" lasting at least {min_duration:g} s" if min_duration else "")
+             "other states: each change"
+             + (f" (unavailable/unknown only if longer than {min_duration:g} s)" if min_duration else "")
              + ". First line of each entity = state at the start.", ""]
     total = 0
     for area in sorted(per_area, key=lambda a: (a == "", a)):
