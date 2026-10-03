@@ -17,7 +17,9 @@ ssh <ha-host> 'ha store reload && ha apps install local_cc_agent_host'   # first
 ssh <ha-host> 'ha store reload && ha apps rebuild local_cc_agent_host'   # after changes
 ```
 
-Raise `version` in `cc_agent_host/config.yaml` and add a `CHANGELOG.md` entry for every change.
+Raise `version` in `cc_agent_host/config.yaml` (add-on) or `custom_components/cc_agent_host/manifest.json`
+(integration) and add an entry to the matching `CHANGELOG.md` for every change (Markdown-only changes
+exempt). Enforced by `scripts/agent/version-check` (CI on pull requests) and the consistency tests.
 
 ## Tests
 

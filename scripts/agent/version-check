@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Every change to the add-on or the integration (except Markdown) raises its version (and the consistency tests then
+# demand the matching CHANGELOG entry). Compares the working tree with a base ref.
+# Usage: scripts/agent/version-check [base-ref]   (default: origin/main)
+# shellcheck source=_lib.sh
+source "$(dirname "$0")/_lib.sh"
+base="${1:-origin/main}"
+git -C "$ROOT" rev-parse -q --verify "$base^{commit}" >/dev/null || { echo "✗ unknown base ref: $base" >&2; exit 2; }
+
+version_at() {  # version_at <ref|WORKTREE> <file>
+    local text
+    if [[ $1 == WORKTREE ]]; then text=$(cat "$ROOT/$2"); else text=$(git -C "$ROOT" show "$1:$2" 2>/dev/null) || return 0; fi
+    printf '%s\n' "$text" | grep -oE '"?version"?: *"[0-9]+\.[0-9]+\.[0-9]+"' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'
+}
+
+rc=0 msgs=()
+for part in "add-on:cc_agent_host:cc_agent_host/config.yaml" "integration:custom_components/cc_agent_host:custom_components/cc_agent_host/manifest.json"; do
+    IFS=: read -r name dir file <<<"$part"
+    # committed and uncommitted changes since the merge base; Markdown (CHANGELOG, DOCS, README) is exempt
+    spec=("$dir" ":(exclude)$dir/**/*.md" ":(exclude)$dir/*.md")
+    if git -C "$ROOT" diff --quiet "$(git -C "$ROOT" merge-base "$base" HEAD)" -- "${spec[@]}" \
+        && [[ -z $(git -C "$ROOT" ls-files --others --exclude-standard -- "${spec[@]}") ]]; then
+        msgs+=("$name unchanged"); continue
+    fi
+    old=$(version_at "$base" "$file"); new=$(version_at WORKTREE "$file")
+    if [[ -n $old && $old == "$new" ]]; then
+        echo "✗ $name changed but its version is still $new (raise it in $file and add a CHANGELOG entry)"; rc=1
+    else
+        msgs+=("$name ${old:-new} → $new")
+    fi
+done
+if (( rc == 0 )); then summary=$(printf '%s, ' "${msgs[@]}"); echo "✓ version-check vs $base: ${summary%, }"; fi
+exit $rc

@@ -39,6 +39,19 @@ jobs:
           fi
           echo "addon=$addon" | tee -a "$GITHUB_OUTPUT"
 
+  version:
+    # Pull requests: a changed add-on / integration must raise its version (own job: does not block the image)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: scripts/agent/ci-step "Version check" scripts/agent/version-check "$BASE"
+
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -161,7 +174,7 @@ jobs:
     # Single stable check for branch protection: fails if any job failed or was cancelled
     name: CI Gate
     if: ${{ always() }}
-    needs: [changes, lint, api, integration, hassfest, hacs, image]
+    needs: [changes, version, lint, api, integration, hassfest, hacs, image]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
