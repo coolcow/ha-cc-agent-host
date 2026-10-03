@@ -114,7 +114,9 @@ step_pytest() {
     local name="$1"; shift
     need_python_deps || return $?
     local log t0 rc; log=$(log_file "$name"); t0=$(now_s)
-    (cd "$ROOT" && "$PY" -m pytest "${PYTEST_OPTS[@]}" "$@") > "$log" 2>&1; rc=$?
+    # No third-party plugins: with the Home Assistant harness in the same venv (dev container) its plugin
+    # would otherwise block sockets in the job API tests.
+    (cd "$ROOT" && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "$PY" -m pytest "${PYTEST_OPTS[@]}" "$@") > "$log" 2>&1; rc=$?
     pytest_digest "$name" "$log" "$rc" "$t0" "$@"
 }
 
@@ -127,15 +129,21 @@ with_suite() {
 step_api() { local a; mapfile -t a < <(with_suite tests/api "$@"); step_pytest api "${a[@]}"; }
 step_repo() { local a; mapfile -t a < <(with_suite tests/repo "$@"); step_pytest repo "${a[@]}"; }
 
-# step_integration [pytest args...]: Home Assistant tests (Python 3.14). Uses python3 directly when it
-# already has the test harness (CI after `pip install`), otherwise a python:3.14 container.
+# step_integration [pytest args...]: Home Assistant tests (Python 3.14). Uses the .venv (dev container) or
+# python3 (CI) directly when it has the test harness, otherwise a python:3.14 container.
 step_integration() {
     local args log t0 rc
     mapfile -t args < <(with_suite tests/integration "$@")
     local opts=("${PYTEST_OPTS[@]}" -o asyncio_mode=auto -o asyncio_default_fixture_loop_scope=function)
     log=$(log_file integration); t0=$(now_s)
-    if python3 -c 'import sys, pytest_homeassistant_custom_component; sys.exit(sys.version_info < (3, 14))' 2>/dev/null; then
-        (cd "$ROOT" && python3 -m pytest "${opts[@]}" "${args[@]}") > "$log" 2>&1; rc=$?
+    local py="" candidate
+    for candidate in "$PY" "$(command -v python3)"; do
+        if "$candidate" -c 'import sys, pytest_homeassistant_custom_component; sys.exit(sys.version_info < (3, 14))' 2>/dev/null; then
+            py="$candidate"; break
+        fi
+    done
+    if [[ -n $py ]]; then
+        (cd "$ROOT" && "$py" -m pytest "${opts[@]}" "${args[@]}") > "$log" 2>&1; rc=$?
     else
         need_docker "integration tests (no local Python 3.14 with the test harness)" || return $?
         docker_proxy_args

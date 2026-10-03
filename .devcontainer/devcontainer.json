@@ -1,0 +1,47 @@
+// Dev container: Python 3.14 (Home Assistant integration tests run natively), Docker CLI → host Docker
+// (lint images, add-on image build), gh and Claude Code. Same pattern as the other coolcow repositories
+// (shared login volumes, no host credentials). Usage: README, section "Development".
+{
+  "name": "ha-cc-agent-host",
+
+  // Python 3.14 as the integration job in CI; bookworm because docker-outside-of-docker installs moby-cli,
+  // which trixie does not have. Image major 3 = current line.
+  "image": "mcr.microsoft.com/devcontainers/python:3-3.14-bookworm",
+
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Docker CLI talking to the host's Docker through the mounted socket. Note: host Docker = root on the host.
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+
+  // Mount the repo at the same path as on the host: the host Docker resolves the bind mounts of the
+  // lint/integration/image containers (-v "$ROOT:/mnt") against host paths, so they must be identical.
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind",
+  "workspaceFolder": "${localWorkspaceFolder}",
+
+  // Logins survive rebuilds in named volumes with fixed names: log in once, valid for all repos using this
+  // pattern. Host ~/.claude, host gh token and host SSH keys are deliberately NOT mounted (deploying to Home
+  // Assistant happens from the host, on the owner's instruction).
+  // .venv gets its own per-repo volume: a host venv points to the host interpreter.
+  "mounts": [
+    "source=devcontainer-claude-config,target=/var/lib/devcontainer/claude,type=volume",
+    "source=devcontainer-gh-config,target=/var/lib/devcontainer/gh,type=volume",
+    "source=${devcontainerId}-venv,target=${localWorkspaceFolder}/.venv,type=volume"
+  ],
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/var/lib/devcontainer/claude",
+    "GH_CONFIG_DIR": "/var/lib/devcontainer/gh"
+  },
+
+  "remoteUser": "vscode",
+
+  // Runs on the host before the container starts: create the .venv mount point as the user, otherwise
+  // Docker creates it root-owned in a fresh clone.
+  "initializeCommand": "mkdir -p .venv",
+  // New volumes are owned by root -> hand them to the container user once, then the regular setup
+  // (.venv with ruff/pytest/pyyaml and the Home Assistant test harness).
+  "postCreateCommand": "sudo chown \"$(id -u):$(id -g)\" /var/lib/devcontainer/claude /var/lib/devcontainer/gh .venv && scripts/setup",
+  // ~/.gitconfig is ephemeral: re-link git credentials to gh on every start (if logged in).
+  "postStartCommand": "gh auth status >/dev/null 2>&1 && gh auth setup-git || true"
+}
