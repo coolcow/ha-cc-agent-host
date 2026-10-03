@@ -5,6 +5,8 @@
 - Context provider `ha_history`: recorder history of selected entities as compact per-area timelines
   (numbers as min–max per time bucket, glitches shorter than `min_duration_s` dropped, area names via the
   template API). Selection by domain, sensor device class and include/exclude globs.
+- Fix: Home Assistant API responses were cut at 4 MB (the context limit), which broke `ha_states` on
+  larger installations; reads now allow up to 64 MB, the context limit still applies to the files.
 
 ## 0.4.0
 

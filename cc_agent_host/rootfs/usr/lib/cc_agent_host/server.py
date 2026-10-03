@@ -59,6 +59,7 @@ MAX_BODY = 64 * 1024
 MAX_PROMPT = 16 * 1024
 MAX_OUTPUT = 1024 * 1024
 MAX_CONTEXT = 4 * 1024 * 1024
+MAX_FETCH = 64 * 1024 * 1024  # Home Assistant API responses (all states incl. attributes can exceed 4 MB)
 TIMEOUT_DEFAULT, TIMEOUT_MAX = 300, 1800
 AUDIT_MAX, AUDIT_KEEP = 1024 * 1024, 3
 
@@ -130,8 +131,11 @@ def normalize_profile(p):
 def supervisor_get(path, accept="application/json", headers=None):
     req = urllib.request.Request(SUPERVISOR + path, headers={
         "Authorization": "Bearer " + ENV("SUPERVISOR_TOKEN", ""), "Accept": accept, **(headers or {})})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read(MAX_CONTEXT)
+    with urllib.request.urlopen(req, timeout=60) as r:
+        body = r.read(MAX_FETCH + 1)
+    if len(body) > MAX_FETCH:
+        raise RuntimeError(f"{path}: response larger than {MAX_FETCH} bytes")
+    return body
 
 
 def ctx_ha_log(job_dir, opts):
@@ -215,7 +219,7 @@ def supervisor_post(path, body):
     req = urllib.request.Request(SUPERVISOR + path, data=json.dumps(body).encode(), method="POST", headers={
         "Authorization": "Bearer " + ENV("SUPERVISOR_TOKEN", ""), "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:
-        return r.read(MAX_CONTEXT)
+        return r.read(MAX_FETCH)
 
 
 def history_select(states, opts):
