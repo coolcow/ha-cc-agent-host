@@ -74,8 +74,9 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
   `host_network`, Docker or SSH access, AppArmor stays enabled. Jobs run as `cc_agent` without root, without write
   access to `/homeassistant` and without HA/Supervisor tokens (`tests/addon/test_isolation.sh`).
 - **Naming (trademark):** no "Claude" in names or identifiers. Display name "CC Agent Host", identifier
-  `cc_agent_host`. In descriptions refer to the product only as "for Claude Code" / "Claude Code". Never
-  explain the abbreviation "cc". Enforced in part by `tests/repo`.
+  `cc_agent_host`. Descriptions may name Anthropic products factually ("Claude Code", "Claude app",
+  "Claude credentials"); never imply affiliation. Never explain the abbreviation "cc". Enforced in part
+  by `tests/repo`.
 - **Use cases are not part of this repository** (usage statistics, log digests, dashboards, …): they are
   Home Assistant configuration in the user's own setup. The add-on stays generic.
 - **64-bit only** (aarch64, amd64): there is no 32-bit Claude Code.
@@ -94,6 +95,9 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
 - Profiles are YAML in the image and extendable by the user under `/addon_configs/…/profiles/`; schema in
   `normalize_profile()` of server.py.
 - HACS validation only runs in CI once the repository is public; file-level HACS checks live in `tests/repo`.
+- Repository home: `github.com/coolcow/ha-cc-agent-host` (manifest `documentation`/`issue_tracker`,
+  `repository.yaml`). The owner develops and deploys from Linux (bash ≥ 4, GNU tools); the scripts also
+  avoid GNU-only flags where cheap.
 - Local installation on a device: `tools/deploy.sh` (guards: clean tree, full check, newer version; never
   restarts HA), details in `docs/DEVELOPMENT.md`. Only on explicit instruction, see above.
 

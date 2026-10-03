@@ -2,6 +2,11 @@
 
 Integration `cc_agent_host` (the add-on has its own changelog in `cc_agent_host/CHANGELOG.md`).
 
+## 0.3.1
+
+- Manifest: documentation and issue tracker point to github.com/coolcow/ha-cc-agent-host, code owner
+  `@coolcow` (metadata only, no behavior change)
+
 ## 0.3.0
 
 - Plan sensor (subscription, tier and multiplier relative to Pro, from the add-on's `/status`)

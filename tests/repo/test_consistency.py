@@ -147,9 +147,11 @@ def test_hacs_json():
 
 def test_manifest():
     manifest = load_json(INTEGRATION / "manifest.json")
-    for key in ("domain", "name", "codeowners", "documentation", "version", "config_flow"):
+    for key in ("domain", "name", "codeowners", "documentation", "issue_tracker", "version", "config_flow"):
         assert key in manifest, key
     assert manifest["domain"] == INTEGRATION.name
+    repo_url = "https://github.com/coolcow/ha-cc-agent-host"
+    assert manifest["documentation"].startswith(repo_url) and manifest["issue_tracker"].startswith(repo_url)
 
 
 # ---- naming: "Claude" is a trademark ----------------------------------------------------------------
