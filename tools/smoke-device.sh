@@ -37,10 +37,13 @@ if [ -f "$m" ]; then
     [ "$v" = "$want_integration" ] && ok "integration version $v" || fail "integration version ${v:-?}, checkout has $want_integration"
 else skip "integration not installed as custom component ($m)"; fi
 
-if [ -z "${SUPERVISOR_TOKEN:-}" ]; then skip "job API / sensors: no SUPERVISOR_TOKEN in this SSH session"; exit 0; fi
-disc=$(sv /discovery 2>/dev/null | jq -c '[.data.discovery[]? | select(.service == "cc_agent_host")][0].config // empty' 2>/dev/null)
-if [ -z "$disc" ]; then skip "job API: no cc_agent_host discovery entry readable (Supervisor role of the SSH app?)"
-else
+code() { curl -s -o /dev/null -m 10 -w '%{http_code}' "$@" 2>/dev/null || true; }
+
+# Job API: full /status via Supervisor discovery when this session may read it; otherwise liveness only
+# (unauthenticated /status on the add-on's internal IP: 401/403 = service up, no token needed).
+disc=""
+[ -n "${SUPERVISOR_TOKEN:-}" ] && disc=$(sv /discovery 2>/dev/null | jq -c '[.data.discovery[]? | select(.service == "cc_agent_host")][0].config // empty' 2>/dev/null)
+if [ -n "$disc" ]; then
     h=$(printf '%s' "$disc" | jq -r .host) p=$(printf '%s' "$disc" | jq -r .port) k=$(printf '%s' "$disc" | jq -r .api_key)
     st=$(curl -fsS -m 10 -H "Authorization: Bearer $k" "http://$h:$p/status" 2>/dev/null)
     if [ -z "$st" ]; then fail "job API http://$h:$p/status not reachable"
@@ -49,9 +52,24 @@ else
         [ "$v" = "$want_addon" ] && ok "job API /status, version $v" || fail "job API reports version $v, checkout has $want_addon"
         info "job API: signed_in=$(printf '%s' "$st" | jq -r .signed_in) job_token=$(printf '%s' "$st" | jq -r .job_token) profiles=$(printf '%s' "$st" | jq -r '.profiles | join(",")')"
     fi
+else
+    ip=$(printf '%s' "$info" | jq -r '.data.ip_address // empty' 2>/dev/null)
+    if [ -z "$ip" ]; then skip "job API: add-on IP unknown"
+    else
+        c=$(code "http://$ip:8100/status")
+        case "$c" in
+            401|403) ok "job API on $ip:8100 answers (HTTP $c without token; details need Supervisor discovery)" ;;
+            *) fail "job API on $ip:8100 not answering as expected (HTTP ${c:-none})" ;;
+        esac
+    fi
 fi
-states=$(sv /core/api/states 2>/dev/null)
-if [ -z "$states" ]; then skip "sensors: Home Assistant API not readable from this SSH session"
+
+states=""
+[ -n "${SUPERVISOR_TOKEN:-}" ] && states=$(sv /core/api/states 2>/dev/null)
+if [ -z "$states" ]; then
+    why="no SUPERVISOR_TOKEN"
+    [ -n "${SUPERVISOR_TOKEN:-}" ] && why="HTTP $(code -H "Authorization: Bearer $SUPERVISOR_TOKEN" http://supervisor/core/api/states)"
+    skip "sensors: Home Assistant API not readable from this SSH session ($why)"
 else
     total=$(printf '%s' "$states" | jq '[.[] | select(.entity_id | test("cc_agent_host"))] | length')
     bad=$(printf '%s' "$states" | jq -r '[.[] | select((.entity_id | test("cc_agent_host")) and .state == "unavailable") | .entity_id] | join(" ")')

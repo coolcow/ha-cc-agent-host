@@ -46,21 +46,26 @@ esac
 FAKE_HA = r"""#!/bin/bash
 case "$1 $2" in
   "apps info") v=$(cat "$FAKE_DIR/addon_version" 2>/dev/null || echo "${FAKE_ADDON:-}"); [[ -n $v ]] || exit 1
-               printf '{"result":"ok","data":{"version":"%s","state":"%s"}}' "$v" "${FAKE_STATE:-started}" ;;
+               printf '{"result":"ok","data":{"version":"%s","state":"%s","ip_address":"172.30.33.5"}}' \
+                      "$v" "${FAKE_STATE:-started}" ;;
   "apps logs") echo "INFO all good" ;;
 esac
 """
 
 FAKE_CURL = r"""#!/bin/bash
+# FAKE_SV_DENIED=1: the SSH app's Supervisor role may not read /discovery or the core API (HTTP 403)
 url="${@: -1}"
+wcode=0; [[ " $* " == *" -w "* ]] && wcode=1
 disc='{"service":"cc_agent_host","config":{"host":"h","port":8100,"api_key":"k"}}'
 ent='{"entity_id":"sensor.cc_agent_host_plan","state":"max"},{"entity_id":"light.x","state":"on"}'
+deny() { if (( wcode )); then printf 403; exit 0; fi; exit 22; }
 case "$url" in
-  */discovery) echo "{\"data\":{\"discovery\":[$disc]}}" ;;
+  */discovery) [[ -n ${FAKE_SV_DENIED:-} ]] && deny; echo "{\"data\":{\"discovery\":[$disc]}}" ;;
+  http://172.30.33.5:8100/status) if (( wcode )); then printf "${FAKE_LIVENESS:-401}"; else exit 22; fi ;;
   */status) v=$(cat "$FAKE_DIR/addon_version" 2>/dev/null || echo "${FAKE_ADDON:-}")
             printf '{"version":"%s","signed_in":true,"job_token":false,"profiles":["read"]}' \
                    "${FAKE_API_VERSION:-$v}" ;;
-  */core/api/states) echo "[$ent]" ;;
+  */core/api/states) [[ -n ${FAKE_SV_DENIED:-} ]] && deny; echo "[$ent]" ;;
   *) exit 7 ;;
 esac
 """
@@ -237,4 +242,22 @@ def test_smoke_without_supervisor_token_skips_api(repo, fake):
     fake.install_integration(manifest_version())
     r = fake.run(repo, "tools/smoke-device.sh", "ha.local", FAKE_ADDON=ADDON_VERSION, SUPERVISOR_TOKEN="")
     assert r.returncode == 0, r.stdout
-    assert "skip job API / sensors" in r.stdout
+    assert "ok   job API on 172.30.33.5:8100 answers" in r.stdout  # liveness needs no token
+    assert "skip sensors: Home Assistant API not readable from this SSH session (no SUPERVISOR_TOKEN)" in r.stdout
+
+
+def test_smoke_without_supervisor_access_checks_liveness(repo, fake):
+    """The owner's SSH app may not read /discovery or the core API: job API liveness via the add-on IP."""
+    fake.install_integration(manifest_version())
+    r = fake.run(repo, "tools/smoke-device.sh", "ha.local", FAKE_ADDON=ADDON_VERSION, FAKE_SV_DENIED="1")
+    assert r.returncode == 0, r.stdout
+    assert "ok   job API on 172.30.33.5:8100 answers (HTTP 401" in r.stdout
+    assert "skip sensors: Home Assistant API not readable from this SSH session (HTTP 403)" in r.stdout
+
+
+def test_smoke_liveness_failure(repo, fake):
+    fake.install_integration(manifest_version())
+    r = fake.run(repo, "tools/smoke-device.sh", "ha.local", FAKE_ADDON=ADDON_VERSION, FAKE_SV_DENIED="1",
+                 FAKE_LIVENESS="000")
+    assert r.returncode == 1
+    assert "FAIL job API on 172.30.33.5:8100 not answering as expected (HTTP 000)" in r.stdout

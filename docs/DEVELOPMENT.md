@@ -16,7 +16,8 @@ Only on the owner's decision. Needs SSH access to the device (Terminal & SSH app
 ```bash
 tools/deploy.sh <ha-host> --dry-run        # guards only, prints the remote commands
 tools/deploy.sh <ha-host> [addon|integration|all] [--redeploy]
-tools/smoke-device.sh <ha-host>            # read-only: versions, add-on state, job API, sensors
+tools/smoke-device.sh <ha-host>            # read-only: versions, add-on state, job API (liveness
+                                           # or full /status via discovery), sensors if the HA API is readable
 ```
 
 `tools/deploy.sh` refuses a dirty working tree, runs the full `scripts/agent/check`, requires a version newer
