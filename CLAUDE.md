@@ -39,6 +39,9 @@ failure; CI runs the same commands.
 | Latest CI failure of this branch | `scripts/agent/ci-failures` (needs `gh auth login`) |
 | Pin a Claude Code version | `tools/bump-claude-code.sh [version]` (also raises add-on patch version + CHANGELOG) |
 
+Skills (`.claude/skills/`): `bump-claude-code`, `release-addon`, `ci-failures`. A PostToolUse hook lints
+every edited file (ruff, shellcheck, yamllint/actionlint, hadolint) and reports findings immediately.
+
 The image step builds for the local architecture only and needs GHCR access (base image); aarch64 is
 covered by CI. If the image cannot be built locally, say so and rely on CI, don't skip silently.
 

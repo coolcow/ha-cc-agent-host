@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(scripts/agent/check)",
+      "Bash(scripts/agent/check *)",
+      "Bash(scripts/agent/test)",
+      "Bash(scripts/agent/test *)",
+      "Bash(scripts/agent/version-check)",
+      "Bash(scripts/agent/version-check *)",
+      "Bash(scripts/agent/ci-failures)",
+      "Bash(scripts/agent/ci-failures *)",
+      "Bash(scripts/setup)",
+      "Bash(tools/bump-claude-code.sh)",
+      "Bash(tools/bump-claude-code.sh *)",
+      "Bash(tools/lint.sh)",
+      "Bash(tools/test-integration.sh *)",
+      "Bash(.venv/bin/python -m pytest *)",
+      "Bash(.venv/bin/ruff check *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git ls-files *)",
+      "Bash(git merge-base *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr list *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)"
+    ],
+    "ask": [
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(tools/deploy.sh)",
+      "Bash(tools/deploy.sh *)",
+      "Bash(tools/smoke-device.sh *)",
+      "Bash(gh api *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh repo edit *)",
+      "Bash(gh release *)",
+      "Bash(git tag *)"
+    ],
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push * --force)",
+      "Bash(git push * -f)",
+      "Bash(git push * --force-with-lease)",
+      "Bash(git push origin main)",
+      "Bash(git push origin main *)",
+      "Bash(git push origin HEAD:main *)",
+      "Bash(git push * main)",
+      "Bash(git push * HEAD:main)",
+      "Bash(gh repo edit --visibility *)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/job_token)",
+      "Read(**/api_token)",
+      "Read(**/.credentials.json)",
+      "Read(**/secrets.yaml)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/lint-file.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
