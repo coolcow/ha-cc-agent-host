@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.7.0
+
+- Claude Code updates without an add-on release: the job API reports the latest Claude Code version
+  (npm, checked every 6 hours) in `/status` and installs a version on request (`POST /cli/update`),
+  downloaded from npm, sha512-verified and kept in `/data/cli`. The companion integration (0.4.0) shows
+  it as an update entity; nothing is installed automatically. Remote Control restarts with the new
+  version. An add-on release with the same or a newer Claude Code version replaces the installed update.
+
+## 0.6.1
+
+- Claude Code 2.1.291 (2.1.287 could not store a permanent folder approval for cloud sessions; only
+  "allow once" worked).
+
+## 0.6.0
+
+- Remote Control runs in server mode (`claude remote-control`) as its own service instead of being
+  attached to the web terminal session. The add-on no longer shows a permanently open, mostly empty
+  session in claude.ai/code and the Claude app; a session in `/homeassistant` starts only when you open
+  one there (permission mode `default`, spawn mode `same-dir`: sessions work directly in the
+  configuration, also when it is a git repository) and is archived when the add-on stops. The service starts by
+  itself after the sign-in, no restart needed. The web terminal session is local only now.
+- The server runs in the tmux session `rc`, so its one-time questions (Remote Control consent, workspace
+  trust) can be answered in the web terminal; the add-on log points to a waiting question.
+- Web terminal: tappable tabs **Terminal** and **Remote Control** in the status bar (no Ctrl key needed,
+  e.g. on phones).
+
 ## 0.5.0
 
 - Context provider `ha_history`: recorder history of selected entities as compact per-area timelines

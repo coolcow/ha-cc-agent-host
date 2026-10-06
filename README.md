@@ -4,7 +4,7 @@ Home Assistant app (add-on) that runs the official, unmodified Claude Code CLI i
 Home Assistant with your own Claude subscription:
 
 - web terminal in the Home Assistant sidebar (ingress only)
-- optional Claude Code Remote Control, always on
+- optional Claude Code Remote Control in server mode (sessions on demand)
 - jobs from automations with permission profiles *(planned)*
 - companion integration with a `cc_agent_host.run` action and sensors *(planned)*
 

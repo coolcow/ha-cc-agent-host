@@ -23,8 +23,10 @@ check() {  # check <description> <command...>
 
 version="$(grep -oP '^ARG CLAUDE_CODE_VERSION=\K.*' cc_agent_host/Dockerfile)"
 check "Claude Code $version runs" "claude --version | grep -q '^$version'"
-check "claude binary root-owned, not writable by others" \
-    "[ \"\$(stat -c %U:%a /usr/local/bin/claude)\" = root:755 ]"
+check "claude binary and launcher root-owned, not writable by others" \
+    "[ \"\$(stat -L -c %U:%a /usr/local/bin/claude /usr/lib/cc_agent_host/claude /usr/lib/cc_agent_host/cli-launcher | sort -u)\" = root:755 ]"
+check "image version used while no update is installed" \
+    "[ \"\$(readlink /usr/local/bin/claude)\" = /usr/lib/cc_agent_host/cli-launcher ] && [ ! -e /data/cli/current ]"
 check "time zones available (ha_history)" "python3 -c \"from zoneinfo import ZoneInfo; ZoneInfo('Europe/Paris')\""
 check "auto-updater disabled" '[ "$DISABLE_AUTOUPDATER" = 1 ]'
 check "login stored in /data" '[ "$CLAUDE_CONFIG_DIR" = /data/claude ] && [ "$HOME" = /data/home ]'
@@ -33,7 +35,7 @@ check "nginx admits only the ingress gateway" \
     "grep -q 'allow 172.30.32.2;' /etc/nginx/nginx.conf && grep -q 'deny all;' /etc/nginx/nginx.conf"
 check "tools present" "command -v ttyd tmux git jq bashio"
 check "s6 services registered" \
-    "for s in init-cc session ttyd nginx api; do [ -e /etc/s6-overlay/s6-rc.d/user/contents.d/\$s ] || exit 1; done"
+    "for s in init-cc session ttyd nginx api remote-control; do [ -e /etc/s6-overlay/s6-rc.d/user/contents.d/\$s ] || exit 1; done"
 check "scripts executable" \
     "[ -x /usr/local/bin/cc-session ] && for f in /etc/s6-overlay/s6-rc.d/*/run; do [ -x \$f ] || exit 1; done"
 
@@ -58,6 +60,10 @@ rcheck "nginx user can reach ttyd" \
 rcheck "other clients get 403 from nginx" \
     '[ "$(curl -s -o /dev/null -w %{http_code} http://$(hostname -i):8099/)" = 403 ]'
 rcheck "tmux session cc running" 'tmux has-session -t cc'
+rcheck "status bar tabs switch sessions on tap" \
+    'tmux show -gv status-right | grep -q "range=user|rc" && tmux list-keys | grep -q "MouseDown1Status.*switch-client -t =rc"'
+rcheck "Remote Control service supervised, idle without the option" \
+    's6-svstat /run/service/remote-control | grep -q "^up" && ! pgrep -f "[c]laude remote-control"'
 rcheck "only ports 8099 (ingress) and 8100 (job API) listen" \
     '[ "$(netstat -tln | awk "NR>2 {sub(/.*:/, \"\", \$4); print \$4}" | sort -u | tr "\n" " ")" = "8099 8100 " ]'
 

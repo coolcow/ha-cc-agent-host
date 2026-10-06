@@ -27,6 +27,15 @@ for f in /usr/share/cc_agent_host/profiles/*.yaml; do
     [ -e "/srv/ha/addon_config/profiles/$(basename "$f")" ] || cp "$f" /srv/ha/addon_config/profiles/
 done
 
+# Claude Code installed through the update entity: drop it once the image brings the same or a newer version
+if [ -L /data/cli/current ]; then
+    installed="$(readlink /data/cli/current)"
+    image="$(/usr/lib/cc_agent_host/claude --version 2>/dev/null | cut -d' ' -f1)"
+    if [ ! -x /data/cli/current/claude ] || python3 -c 'import sys; v = [tuple(map(int, a.split("."))) for a in sys.argv[1:]]; sys.exit(v[1] < v[0])' "$installed" "$image" 2>/dev/null; then
+        bashio::log.info "Claude Code ${image} of the image replaces the installed update ${installed}"
+        rm -rf /data/cli
+    fi
+fi
 bashio::log.info "Claude Code $(claude --version 2>/dev/null)"
 if [ -s "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
     bashio::log.info "Signed in"

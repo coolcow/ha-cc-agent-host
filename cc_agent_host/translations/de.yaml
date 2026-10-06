@@ -2,9 +2,11 @@ configuration:
   remote_control:
     name: Remote Control
     description: >-
-      Startet die dauerhafte Sitzung mit Claude Code Remote Control, damit sie aus der
-      Claude-App und auf claude.ai/code gesteuert werden kann. Wirkt nach der Anmeldung
-      und einem Neustart des Add-ons.
+      Startet Claude Code Remote Control im Server-Modus, damit du aus der Claude-App
+      und auf claude.ai/code Sitzungen in deiner Home-Assistant-Konfiguration starten
+      kannst. Es bleibt keine Sitzung offen: Eine startet erst, wenn du sie dort
+      öffnest. Startet nach der Anmeldung von selbst; eine Änderung der Option braucht
+      einen Neustart des Add-ons.
   usage_api:
     name: Vollständige Plan-Nutzung über die Usage-API (bewusst einschalten)
     description: >-

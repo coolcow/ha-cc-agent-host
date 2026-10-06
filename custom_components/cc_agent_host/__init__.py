@@ -18,7 +18,7 @@ from .const import (ATTR_PROFILE, ATTR_PROMPT, ATTR_TIMEOUT, CONF_API_KEY, DOMAI
                     SERVICE_RUN)
 from .coordinator import AgentHostConfigEntry, AgentHostCoordinator
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.UPDATE]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 RUN_SCHEMA = vol.Schema({

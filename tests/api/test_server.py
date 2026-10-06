@@ -328,3 +328,123 @@ def test_plan_with_usage_api(env, http, monkeypatch, tier, plan, mult):
     env["server"]._plan_cache.update(at=0.0, data=None)
     p = http("GET", "/status")[1]["plan"]
     assert p["plan"] == plan and p["multiplier"] == mult
+
+
+# --- Claude Code updates ----------------------------------------------------------------
+
+def fake_registry(env, monkeypatch, version="2.1.300", corrupt=False, reported=None):
+    """npm registry stand-in: manifest for `latest`/version and a tarball with a fake binary."""
+    import base64
+    import hashlib
+    import io
+    import tarfile
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from conftest import free_port
+
+    srv = env["server"]
+    monkeypatch.setattr(srv.platform, "machine", lambda: "aarch64")
+    binary = f"#!/bin/sh\necho '{reported or version} (Claude Code)'\n".encode()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as t:
+        info = tarfile.TarInfo("package/claude")
+        info.size, info.mode = len(binary), 0o755
+        t.addfile(info, io.BytesIO(binary))
+    tgz = buf.getvalue()
+    integrity = "sha512-" + base64.b64encode(hashlib.sha512(b"x" if corrupt else tgz).digest()).decode()
+    port = free_port()
+    base = f"http://127.0.0.1:{port}"
+    pkg = "/@anthropic-ai/claude-code-linux-arm64-musl"
+    requests = []
+
+    class Registry(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            requests.append(self.path)
+            if self.path in (f"{pkg}/latest", f"{pkg}/{version}"):
+                body = json.dumps({"version": version, "dist": {
+                    "tarball": f"{base}{pkg}/-/claude-code-linux-arm64-musl-{version}.tgz",
+                    "integrity": integrity}}).encode()
+            elif self.path == f"{pkg}/-/claude-code-linux-arm64-musl-{version}.tgz":
+                body = tgz
+            else:
+                self.send_response(404)
+                self.end_headers()
+                return
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", port), Registry)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    monkeypatch.setattr(srv, "NPM_REGISTRY", base)
+    srv._cli.update(latest=None, checked_at=0.0, checking=False, updating=False, error=None)
+    monkeypatch.setattr(srv, "CLI_DIR", env["tmp"] / "cli")
+    restarts = []
+    monkeypatch.setattr(srv, "restart_remote_control", lambda: restarts.append(1))
+    return requests, restarts
+
+
+def test_latest_version_in_status(env, http, monkeypatch):
+    import time
+    requests, _ = fake_registry(env, monkeypatch)
+    http("GET", "/status")
+    for _ in range(100):
+        if env["server"]._cli["latest"]:
+            break
+        time.sleep(0.05)
+    st = http("GET", "/status")[1]
+    assert st["claude_latest"] == "2.1.300" and st["claude_updating"] is False
+    assert requests == ["/@anthropic-ai/claude-code-linux-arm64-musl/latest"]  # cached for 6 hours
+
+
+def test_cli_update_installs_verified_binary(env, http, monkeypatch):
+    _, restarts = fake_registry(env, monkeypatch)
+    code, r = http("POST", "/cli/update", {})
+    assert code == 200 and r["version"] == "2.1.300" and restarts == [1]
+    cli = env["tmp"] / "cli"
+    assert os.readlink(cli / "current") == "2.1.300"
+    assert oct((cli / "2.1.300" / "claude").stat().st_mode & 0o777) == "0o755"
+    assert sorted(p.name for p in cli.iterdir()) == ["2.1.300", "current"]  # no temp leftovers
+
+
+def test_cli_update_keeps_previous_version_only(env, http, monkeypatch):
+    fake_registry(env, monkeypatch)
+    cli = env["tmp"] / "cli"
+    for v in ("2.1.290", "2.1.295"):
+        (cli / v).mkdir(parents=True)
+    (cli / "current").symlink_to("2.1.295")
+    assert http("POST", "/cli/update", {"version": "2.1.300"})[0] == 200
+    assert sorted(p.name for p in cli.iterdir()) == ["2.1.295", "2.1.300", "current"]
+
+
+@pytest.mark.parametrize(("kwargs", "error"), [({"corrupt": True}, "checksum mismatch"),
+                                               ({"reported": "2.1.1"}, "expected 2.1.300")])
+def test_cli_update_rejects_bad_package(env, http, monkeypatch, kwargs, error):
+    _, restarts = fake_registry(env, monkeypatch, **kwargs)
+    code, r = http("POST", "/cli/update", {})
+    assert code == 502 and error in r["error"] and restarts == []
+    cli = env["tmp"] / "cli"
+    assert not (cli / "current").exists() and not any(cli.iterdir())
+    assert error in http("GET", "/status")[1]["claude_update_error"]
+
+
+def test_cli_update_validation_and_busy(env, http, monkeypatch):
+    fake_registry(env, monkeypatch)
+    assert http("POST", "/cli/update", {"version": "latest; rm -rf /"})[0] == 400
+    env["server"].job_lock.acquire()
+    try:
+        assert http("POST", "/cli/update", {})[0] == 429
+    finally:
+        env["server"].job_lock.release()
+
+
+def test_cli_update_refuses_foreign_tarball(env, http, monkeypatch):
+    fake_registry(env, monkeypatch)
+    monkeypatch.setattr(env["server"], "npm_manifest", lambda v: {
+        "version": "2.1.300", "dist": {"tarball": "https://example.org/evil.tgz", "integrity": "sha512-AA=="}})
+    code, r = http("POST", "/cli/update", {})
+    assert code == 502 and "unexpected package data" in r["error"]

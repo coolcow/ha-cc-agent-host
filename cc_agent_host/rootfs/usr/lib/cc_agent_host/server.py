@@ -10,18 +10,23 @@ Endpoints:
     GET  /profiles  profile names and descriptions
     GET  /usage     plan usage as last reported by Claude Code's status line
     POST /run       {"profile": str, "prompt": str, "timeout": int?} -> job result
+    POST /cli/update  {"version": str?} -> installs that Claude Code version (default: latest)
 """
 import fnmatch
+import functools
 import hashlib
 import hmac
+import base64
 import ipaddress
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
 import signal
 import subprocess
+import tarfile
 import threading
 import time
 import urllib.request
@@ -46,6 +51,9 @@ PORT = int(ENV("CC_PORT", "8100"))
 ALLOWED_NETS = [ipaddress.ip_network(n) for n in
                 ENV("CC_ALLOWED_NETS", "172.30.32.0/23,127.0.0.0/8").split(",") if n]
 VERSION = ENV("CC_VERSION", "dev")
+CLI_DIR = Path(ENV("CC_CLI_DIR", str(DATA / "cli")))
+IMAGE_CLAUDE = ENV("CC_IMAGE_CLAUDE", "/usr/lib/cc_agent_host/claude")
+NPM_REGISTRY = ENV("CC_NPM_REGISTRY", "https://registry.npmjs.org")
 
 API_TOKEN_FILE = DATA / "api_token"
 JOB_TOKEN_FILE = DATA / "job_token"
@@ -543,10 +551,19 @@ def status():
     return {"version": VERSION, "claude_version": claude_version(), "plan": plan(),
             "signed_in": INTERACTIVE_CREDENTIALS.exists(), "job_token": bool(read_secret(JOB_TOKEN_FILE)),
             "running": running["id"] is not None, "running_profile": running["profile"],
-            "profiles": sorted(load_profiles())}
+            "profiles": sorted(load_profiles()), "claude_image_version": image_claude_version(), **cli_status()}
 
 
 _claude_version = None
+
+
+@functools.cache
+def image_claude_version():
+    try:
+        return subprocess.run([IMAGE_CLAUDE, "--version"], capture_output=True, text=True,
+                              timeout=20).stdout.split()[0]
+    except (OSError, IndexError, subprocess.SubprocessError):
+        return None
 
 
 def claude_version():
@@ -558,6 +575,133 @@ def claude_version():
         except (OSError, IndexError, subprocess.SubprocessError):
             _claude_version = "unknown"
     return _claude_version
+
+
+# --- Claude Code updates ------------------------------------------------------------------
+# The image pins a checksum-verified Claude Code version. Newer versions are offered to Home Assistant
+# (update entity of the integration) and installed only on request, from the official npm package with
+# the registry's sha512 integrity, into /data/cli/<version>; /usr/local/bin/claude prefers /data/cli/current.
+
+CLI_CHECK_TTL = 6 * 3600
+VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+_cli = {"latest": None, "checked_at": 0.0, "checking": False, "updating": False, "error": None}
+_cli_lock = threading.Lock()
+
+
+def version_key(v):
+    return tuple(int(x) for x in v.split(".")) if v and VERSION_RE.match(v) else (0,)
+
+
+def npm_package():
+    arch = {"aarch64": "arm64", "arm64": "arm64", "x86_64": "x64", "amd64": "x64"}.get(platform.machine())
+    if arch is None:
+        raise JobError(500, f"unsupported architecture {platform.machine()}")
+    return f"@anthropic-ai/claude-code-linux-{arch}-musl"
+
+
+def npm_manifest(version):
+    with urllib.request.urlopen(f"{NPM_REGISTRY}/{npm_package()}/{version}", timeout=30) as r:
+        return json.loads(r.read())
+
+
+def check_latest():
+    """Latest Claude Code version from npm, refreshed in the background at most every 6 hours."""
+    with _cli_lock:
+        if _cli["checking"] or time.time() - _cli["checked_at"] < CLI_CHECK_TTL:
+            return
+        _cli["checking"] = True
+
+    def run():
+        try:
+            latest = npm_manifest("latest").get("version")
+            if VERSION_RE.match(latest or ""):
+                _cli["latest"] = latest
+            _cli["checked_at"] = time.time()
+        except (OSError, ValueError, JobError) as e:
+            print(f"Claude Code version check failed: {e}", flush=True)
+            _cli["checked_at"] = time.time() - CLI_CHECK_TTL + 600  # retry in 10 minutes
+        finally:
+            _cli["checking"] = False
+
+    threading.Thread(target=run, daemon=True).start()
+
+
+def cli_status():
+    check_latest()
+    return {"claude_latest": _cli["latest"], "claude_updating": _cli["updating"],
+            "claude_update_error": _cli["error"]}
+
+
+def install_cli(version=None):
+    global _claude_version
+    if not job_lock.acquire(blocking=False):
+        raise JobError(429, "a job is running, try again when it has finished")
+    _cli.update(updating=True, error=None)
+    tmp = None
+    try:
+        manifest = npm_manifest(version or "latest")
+        version = manifest.get("version", "")
+        tarball, integrity = manifest["dist"]["tarball"], manifest["dist"].get("integrity", "")
+        if not VERSION_RE.match(version) or not integrity.startswith("sha512-") \
+                or not tarball.startswith(f"{NPM_REGISTRY}/{npm_package()}/-/"):
+            raise JobError(502, "unexpected package data from npm")
+        CLI_DIR.mkdir(mode=0o755, exist_ok=True)
+        os.chmod(CLI_DIR, 0o755)  # noqa: S103 - the job user cc_agent runs this binary too
+        tmp = CLI_DIR / f".tmp-{uuid.uuid4().hex[:8]}"
+        tmp.mkdir(mode=0o755)
+        digest = hashlib.sha512()
+        with urllib.request.urlopen(tarball, timeout=60) as r, open(tmp / "package.tgz", "wb") as f:
+            while chunk := r.read(1024 * 1024):
+                digest.update(chunk)
+                f.write(chunk)
+        if not hmac.compare_digest(base64.b64encode(digest.digest()).decode(), integrity[7:]):
+            raise JobError(502, "checksum mismatch, nothing installed")
+        with tarfile.open(tmp / "package.tgz") as t, open(tmp / "claude", "wb") as out:
+            member = t.getmember("package/claude")
+            if not member.isfile():
+                raise JobError(502, "package/claude missing")
+            shutil.copyfileobj(t.extractfile(member), out)
+        os.chmod(tmp / "claude", 0o755)  # noqa: S103 - executable for the job user, owned by root
+        reported = subprocess.run([str(tmp / "claude"), "--version"], capture_output=True, text=True,
+                                  timeout=60, env={"PATH": "/usr/bin:/bin", "HOME": str(tmp),
+                                                   "DISABLE_AUTOUPDATER": "1"}).stdout
+        if not reported.startswith(version):
+            raise JobError(502, f"downloaded binary reports {reported.strip()!r}, expected {version}")
+        (tmp / "package.tgz").unlink()
+        target = CLI_DIR / version
+        shutil.rmtree(target, ignore_errors=True)
+        tmp.rename(target)
+        tmp = None
+        previous = os.readlink(CLI_DIR / "current") if (CLI_DIR / "current").is_symlink() else None
+        link = CLI_DIR / ".current-new"
+        link.unlink(missing_ok=True)
+        link.symlink_to(version)
+        link.replace(CLI_DIR / "current")
+        for old in CLI_DIR.iterdir():  # keep the new and the previous version
+            if old.is_dir() and not old.is_symlink() and old.name not in (version, previous):
+                shutil.rmtree(old, ignore_errors=True)
+        _claude_version = None
+        _cli["error"] = None
+        restart_remote_control()
+        print(f"Claude Code {version} installed", flush=True)
+        return {"version": version, "remote_control_restarted": True,
+                "note": "the web terminal session uses the new version after its next start"}
+    except JobError as e:
+        _cli["error"] = str(e)
+        raise
+    except (OSError, ValueError, KeyError, tarfile.TarError, subprocess.SubprocessError) as e:
+        _cli["error"] = f"{type(e).__name__}: {e}"
+        raise JobError(502, _cli["error"]) from e
+    finally:
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
+        _cli["updating"] = False
+        job_lock.release()
+
+
+def restart_remote_control():
+    """The Remote Control service starts again by itself (with the new version) when its tmux session ends."""
+    subprocess.run(["tmux", "kill-session", "-t", "rc"], capture_output=True, timeout=10)
 
 
 def option(name, default=None):
@@ -696,7 +840,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.authorized():
             return
-        if self.path != "/run":
+        if self.path not in ("/run", "/cli/update"):
             return self.reply(404, {"error": "not found"})
         length = int(self.headers.get("Content-Length") or 0)
         if length > MAX_BODY:
@@ -708,6 +852,11 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self.reply(400, {"error": "invalid JSON"})
         try:
+            if self.path == "/cli/update":
+                version = body.get("version")
+                if version is not None and not VERSION_RE.match(str(version)):
+                    raise JobError(400, "version must look like 2.1.291")
+                return self.reply(200, install_cli(version))
             self.reply(200, run_job(str(body.get("profile", "")), body.get("prompt"), body.get("timeout")))
         except JobError as e:
             self.reply(e.status, {"error": str(e)})

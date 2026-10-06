@@ -50,6 +50,10 @@ class AgentHostApi:
     async def profiles(self) -> dict[str, Any]:
         return await self._request("GET", "/profiles", 15)
 
+    async def update_cli(self, version: str | None) -> dict[str, Any]:
+        # download (~70 MB) and verification on a small device can take a few minutes
+        return await self._request("POST", "/cli/update", 900, {"version": version} if version else {})
+
     async def run(self, profile: str, prompt: str, timeout: int | None) -> dict[str, Any]:
         body: dict[str, Any] = {"profile": profile, "prompt": prompt}
         if timeout:

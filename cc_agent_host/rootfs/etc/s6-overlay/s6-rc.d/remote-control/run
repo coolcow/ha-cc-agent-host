@@ -1,0 +1,39 @@
+#!/usr/bin/with-contenv bashio
+# Claude Code Remote Control in server mode: makes the add-on available in claude.ai/code and the
+# Claude app without keeping a session open. A session in /homeassistant starts only when you open one
+# there and is archived when the add-on stops. The web terminal session is separate and stays local.
+# The server runs in the tmux session "rc": it needs a terminal for its questions (first-time consent,
+# workspace trust), which only you answer, in the web terminal (tab "Remote Control" in the status bar).
+if ! bashio::config.true 'remote_control'; then
+    exec sleep infinity
+fi
+
+creds="$CLAUDE_CONFIG_DIR/.credentials.json"
+if [ ! -s "$creds" ]; then
+    bashio::log.info "Remote Control waits for the sign-in (type /login in the web terminal)"
+    while [ ! -s "$creds" ]; do sleep 10; done
+fi
+
+# Slow down restarts after a failure (no network, ...)
+marker=/run/cc/remote-control.started
+[ -e "$marker" ] && sleep 30
+touch "$marker"
+
+if ! tmux has-session -t rc 2>/dev/null; then
+    bashio::log.info "Starting Remote Control"
+    tmux new-session -d -s rc -x 200 -y 50 -c /homeassistant \
+        claude remote-control --name "CC Agent Host" --spawn same-dir --no-create-session-in-dir \
+        --permission-mode default
+fi
+
+asked=""
+while tmux has-session -t rc 2>/dev/null; do
+    question="$(tmux capture-pane -p -t rc 2>/dev/null | grep -E '\((y/n)\)|\[y/N\]|Choose \[' | tail -n 1)"
+    if [ -n "$question" ] && [ "$question" != "$asked" ]; then
+        bashio::log.warning "Remote Control waits for your answer to \"${question}\":" \
+            "open the web terminal and tap \"Remote Control\" at the bottom right (back with \"Terminal\")"
+    fi
+    asked="$question"
+    sleep 5
+done
+bashio::log.warning "Remote Control has stopped"

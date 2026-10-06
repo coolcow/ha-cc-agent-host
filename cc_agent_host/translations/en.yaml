@@ -2,9 +2,10 @@ configuration:
   remote_control:
     name: Remote Control
     description: >-
-      Start the persistent session with Claude Code Remote Control, so it can be
-      driven from the Claude app and claude.ai/code. Takes effect after signing in
-      and restarting the add-on.
+      Run Claude Code Remote Control in server mode, so you can start sessions in
+      your Home Assistant configuration from the Claude app and claude.ai/code. No
+      session stays open: one starts only when you open it there. Starts by itself
+      once you are signed in; changing the option needs an add-on restart.
   usage_api:
     name: Full plan usage via usage API (opt-in)
     description: >-

@@ -128,3 +128,37 @@ async def test_plan_sensor(hass: HomeAssistant, aioclient_mock):
     await setup(hass, aioclient_mock)
     st = hass.states.get("sensor.cc_agent_host_plan")
     assert st.state == "max_5x" and st.attributes["multiplier"] == 5 and st.attributes["subscription"] == "max"
+
+
+async def test_cli_update_entity(hass: HomeAssistant, aioclient_mock):
+    mock_api(aioclient_mock, status={**STATUS, "claude_latest": "2.1.300", "claude_updating": False})
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=DOMAIN, data=DATA)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    st = hass.states.get("update.cc_agent_host_cli")
+    assert st.state == "on"
+    assert st.attributes["installed_version"] == "2.1.287" and st.attributes["latest_version"] == "2.1.300"
+    assert st.attributes["title"] == "Claude Code"
+    aioclient_mock.post(f"{BASE}/cli/update", json={"version": "2.1.300"})
+    await hass.services.async_call("update", "install", {"entity_id": "update.cc_agent_host_cli"}, blocking=True)
+    call = next(c for c in aioclient_mock.mock_calls if c[1].path == "/cli/update")
+    assert call[2] == {"version": "2.1.300"}
+
+
+async def test_cli_update_entity_without_newer_version(hass: HomeAssistant, aioclient_mock):
+    await setup(hass, aioclient_mock)  # add-on before 0.7.0: no claude_latest
+    st = hass.states.get("update.cc_agent_host_cli")
+    assert st.state == "off" and st.attributes["latest_version"] == "2.1.287"
+
+
+async def test_cli_update_failure(hass: HomeAssistant, aioclient_mock):
+    mock_api(aioclient_mock, status={**STATUS, "claude_latest": "2.1.300"})
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=DOMAIN, data=DATA)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    aioclient_mock.post(f"{BASE}/cli/update", status=502, json={"error": "checksum mismatch, nothing installed"})
+    with pytest.raises(HomeAssistantError, match="checksum mismatch"):
+        await hass.services.async_call("update", "install", {"entity_id": "update.cc_agent_host_cli"},
+                                       blocking=True)

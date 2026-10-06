@@ -85,7 +85,7 @@ def test_claude_code_is_verified_and_unmodified():
     assert url in text
     assert 'sha512sum -c -' in text
     assert text.index("sha512sum -c -") < text.index("tar -xzf /tmp/cc.tgz")
-    assert "install -m 0755 /tmp/package/claude /usr/local/bin/claude" in text
+    assert "install -D -m 0755 /tmp/package/claude /usr/lib/cc_agent_host/claude" in text
     assert "DISABLE_AUTOUPDATER=1" in text
 
 

@@ -80,6 +80,11 @@
       "plan": {
         "name": "Plan"
       }
+    },
+    "update": {
+      "cli": {
+        "name": "CLI"
+      }
     }
   },
   "services": {

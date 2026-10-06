@@ -48,7 +48,8 @@ def env(tmp_path, monkeypatch):
     vals = {"CC_DATA": data, "CC_HA_CONFIG": ha, "CC_PROFILES": profiles, "CC_JOBS": jobs,
             "CC_CLAUDE": fake, "CC_RUN_AS": "", "CC_AGENT_HOME": tmp_path / "agent",
             "CC_USAGE_FILE": tmp_path / "usage.json",
-            "CC_ALLOWED_NETS": "127.0.0.0/8"}
+            "CC_ALLOWED_NETS": "127.0.0.0/8",
+            "CC_NPM_REGISTRY": "http://127.0.0.1:9"}  # no real npm requests from /status in tests
     for k, v in vals.items():
         monkeypatch.setenv(k, str(v))
     (data / "job_token").write_text("sk-ant-oat-test")

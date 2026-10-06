@@ -1,0 +1,6 @@
+#!/bin/sh
+# Claude Code launcher: the version installed through the update entity (/data/cli/current) when
+# present, otherwise the version built into the image. Both are the official, unmodified binary.
+cli=/data/cli/current/claude
+[ -x "$cli" ] || cli=/usr/lib/cc_agent_host/claude
+exec "$cli" "$@"

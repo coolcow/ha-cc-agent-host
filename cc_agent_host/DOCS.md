@@ -20,8 +20,22 @@ of Anthropic, PBC.
 2. Type `/login` in Claude Code and complete the sign-in in your browser.
 3. Optional: enable **Remote Control** in the configuration and restart the add-on.
 
-The session keeps running when you close the browser. Exiting Claude Code drops you
-into a shell; `exit` starts Claude Code again.
+The web terminal session keeps running when you close the browser. Exiting Claude Code
+drops you into a shell; `exit` starts Claude Code again.
+
+## Remote Control
+
+With **Remote Control** enabled, the add-on runs `claude remote-control` in server mode in
+`/homeassistant`. It appears as an environment in claude.ai/code and the Claude app, but no session
+stays open: a new session starts only when you open one there, directly in the configuration (spawn
+mode `same-dir`, no worktrees) and in permission mode `default` (Claude asks before each change). Sessions end when the add-on stops. The service waits for your sign-in and
+starts by itself. The web terminal session itself is not reachable remotely.
+
+The server runs in its own tmux session `rc`. The first time, Claude Code asks
+`Enable Remote Control? (y/n)` (and, if the folder is not trusted yet, whether to trust
+`/homeassistant`); the add-on log then says so. Only you answer these questions: open the web terminal,
+tap **Remote Control** at the bottom right of the status bar, answer, and tap **Terminal** to return
+(works on phones too; on a keyboard, `Ctrl-b s` switches as well).
 
 ## Jobs
 
@@ -65,7 +79,7 @@ max 240), `bucket_minutes` (numbers as min–max per bucket, default 10), `min_d
 
 Reachable only from the internal Home Assistant network, with a bearer token that the add-on announces
 to the companion integration. `GET /status`, `GET /profiles`, `GET /usage`,
-`POST /run {"profile": "...", "prompt": "...", "timeout": 300}`.
+`POST /run {"profile": "...", "prompt": "...", "timeout": 300}`, `POST /cli/update {"version": "..."}`.
 
 `/usage` returns the plan usage, see the next section.
 
@@ -76,7 +90,7 @@ Two sources, chosen with the option **Full plan usage via usage API**:
 | | Status line (default) | Usage API (opt-in) |
 |---|---|---|
 | Data | 5-hour and weekly usage, reset times | same, plus usage credits and the weekly breakdown (Claude Code, chat, …) |
-| Freshness | only while the interactive session is used | every 5 minutes, also when idle |
+| Freshness | only while the web terminal session is used | every 5 minutes, also when idle |
 | Credentials | never touched | the add-on reads the access token of your interactive sign-in |
 | Stability | official Claude Code feature | undocumented endpoint, may change or disappear |
 
@@ -90,6 +104,17 @@ Claude.ai credentials, and the endpoint itself is not a documented public API. T
 risk small (the token stays inside the add-on, is only sent to `api.anthropic.com`, and refreshing is
 left to Claude Code itself), but whether that is acceptable is your decision, so it is opt-in.
 
+## Claude Code updates
+
+The add-on brings a pinned, checksum-verified Claude Code version. Newer versions do not need a new
+add-on release: the add-on checks npm every 6 hours for the latest Claude Code version, and the
+companion integration offers it as an update (entity **CLI** of the CC Agent Host device, under
+Settings → Updates). Nothing is installed automatically: **Install** downloads the official package for your architecture, verifies the
+registry's sha512 checksum and the reported version, and keeps it in the add-on data (`/data/cli`, the
+new and the previous version). Remote Control restarts with the new version (open cloud sessions are
+disconnected); the web terminal session uses it after its next start (`/exit`, then `exit`). An add-on
+release with the same or a newer Claude Code version replaces the installed update.
+
 ## Long links
 
 Long links (for example the sign-in link) wrap over several lines, and only the first line
@@ -99,6 +124,7 @@ automatically. Paste it into a new browser tab; the line breaks are removed on p
 ## Data
 
 - Login and Claude Code settings: add-on data, included in backups.
+- Claude Code installed through the update entity: add-on data (`/data/cli`).
 - Working directory of the terminal: your Home Assistant configuration (`/homeassistant`).
 
 ## Security
