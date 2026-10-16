@@ -78,6 +78,8 @@ def test_history_has_no_private_information():
 
 
 def test_commit_metadata_has_no_private_information():
-    log = git("log", "--all", "--format=%an <%ae>%n%cn <%ce>%n%B%n").decode()
+    """Branches and tags, not a detached HEAD: in pull request CI that is GitHub's throwaway test merge, which
+    carries the account's primary address and never lands anywhere. The merge on main is checked by the push."""
+    log = git("log", "--branches", "--remotes", "--tags", "--format=%an <%ae>%n%cn <%ce>%n%B%n").decode()
     hits = sorted(set(findings(log)))
     assert not hits, hits
