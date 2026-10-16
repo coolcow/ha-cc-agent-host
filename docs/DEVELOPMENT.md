@@ -68,8 +68,10 @@ no-reply addresses and the maintainer's public contact address, private IP addre
 (`*.lan`, `*.home`, `*.internal`), home directories. Personal terms (names, own domains, host names) go
 into the untracked file `.private-patterns` at the repository root, one regular expression per line, so
 the check covers them without publishing them. Commit with your GitHub no-reply address
-(`git config user.email <id>+<login>@users.noreply.github.com`); merges in the GitHub web interface use the
-account's primary e-mail address, so that one must be allowed here too (or kept private in the account).
+(`git config user.email <id>+<login>@users.noreply.github.com`) or an allowed public address. Merges in the
+GitHub web interface use the address picked in the merge dialog (default: the account's primary address):
+pick an allowed one there. Pull request CI skips GitHub's throwaway test merge commit; the push to `main`
+checks the real merge.
 
 ## CI (GitHub Actions)
 
