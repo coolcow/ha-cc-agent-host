@@ -12,7 +12,7 @@ very welcome. Areas of particular interest:
 ## Reporting
 
 Please do **not** open a public issue. Use GitHub's private vulnerability reporting instead:
-**Security → Report a vulnerability** in this repository. Include the add-on and integration versions, what
+**Security → Report a vulnerability** in this repository, or write to mail@coolcow.org. Include the add-on and integration versions, what
 you did and what you expected. You will get an answer within a week.
 
 ## Supported versions

@@ -64,11 +64,12 @@ Latest CI failure of the current branch: `scripts/agent/ci-failures` (needs `gh 
 
 `tests/repo/test_privacy.py` fails on private or local information in the working tree, in every commit
 reachable from any ref, and in commit authors and messages: e-mail addresses other than GitHub/example
-no-reply addresses, private IP addresses (except the Supervisor network 172.30.32.0/23), local host names
+no-reply addresses and the maintainer's public contact address, private IP addresses (except the Supervisor network 172.30.32.0/23), local host names
 (`*.lan`, `*.home`, `*.internal`), home directories. Personal terms (names, own domains, host names) go
 into the untracked file `.private-patterns` at the repository root, one regular expression per line, so
 the check covers them without publishing them. Commit with your GitHub no-reply address
-(`git config user.email <id>+<login>@users.noreply.github.com`).
+(`git config user.email <id>+<login>@users.noreply.github.com`); merges in the GitHub web interface use the
+account's primary e-mail address, so that one must be allowed here too (or kept private in the account).
 
 ## CI (GitHub Actions)
 
