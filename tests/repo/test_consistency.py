@@ -201,3 +201,12 @@ def test_german_translation_in_sync(english):
               for p in (english, german)]
     assert levels[0] == levels[1], f"{german.name}: headings differ from {english.name}"
     assert german.name in english.read_text() and english.name in german.read_text()
+
+
+def test_addon_image_points_to_release_workflow():
+    """`image:` (set at publication) must be the name release.yaml pushes, with the {arch} placeholder."""
+    image = load_yaml(ADDON / "config.yaml").get("image")
+    if image is not None:
+        assert image == "ghcr.io/coolcow/{arch}-addon-cc_agent_host"
+    release = (ROOT / ".github" / "workflows" / "release.yaml").read_text()
+    assert "/${{ matrix.arch }}-addon-cc_agent_host" in release

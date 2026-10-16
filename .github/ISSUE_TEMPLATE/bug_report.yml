@@ -1,0 +1,42 @@
+name: Bug report
+description: Something in the add-on or the integration does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks for reporting. Please remove tokens, e-mail addresses and other personal data from logs
+        before pasting them.
+  - type: dropdown
+    id: part
+    attributes:
+      label: Affected part
+      options:
+        - Add-on (terminal, Remote Control, job API)
+        - Integration (action, sensors, updates)
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Add-on, integration, Claude Code and Home Assistant version, architecture (aarch64/amd64).
+      placeholder: add-on 0.7.0, integration 0.4.0, Claude Code 2.1.291, Home Assistant 2026.10.1, aarch64
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: logs
+    attributes:
+      label: Add-on log or Home Assistant log
+      render: text

@@ -1,0 +1,67 @@
+name: Release
+
+# Builds the add-on image for both architectures from a version tag, runs the image and isolation tests
+# against it and pushes it to GHCR. Tags are created only on the owner's explicit instruction.
+# Manual runs (any branch) build and test only, as a dry run before the first tag.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Tag must match the add-on version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v="$(grep -oP '^version: "\K[^"]+' cc_agent_host/config.yaml)"
+          if [[ $GITHUB_REF_TYPE == tag && "$TAG" != "v$v" ]]; then
+            echo "::error::tag $TAG does not match add-on version $v"; exit 1
+          fi
+          echo "version=$v" | tee -a "$GITHUB_OUTPUT"
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "image=ghcr.io/$owner/${{ matrix.arch }}-addon-cc_agent_host" | tee -a "$GITHUB_OUTPUT"
+      - name: Build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE: ${{ steps.version.outputs.image }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker build --build-arg "BUILD_VERSION=$VERSION" \
+            --label "io.hass.version=$VERSION" --label io.hass.type=addon --label "io.hass.arch=$ARCH" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            -t "$IMAGE:$VERSION" cc_agent_host
+      - name: Image and isolation tests
+        env:
+          IMAGE: ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
+        run: |
+          tests/addon/test_image.sh "$IMAGE"
+          tests/addon/test_isolation.sh "$IMAGE"
+      - name: Push to GHCR
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          IMAGE: ${{ steps.version.outputs.image }}
+        run: |
+          docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin <<< "$GH_TOKEN"
+          docker tag "$IMAGE:$VERSION" "$IMAGE:latest"
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"

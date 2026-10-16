@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/coolcow/ha-cc-agent-host/security/advisories/new
+    about: Please report security issues privately, see SECURITY.md.
+  - name: Problem with Claude Code itself
+    url: https://github.com/anthropics/claude-code/issues
+    about: Bugs of the Claude Code CLI that also happen outside Home Assistant.
