@@ -2,7 +2,8 @@ name: Bump Claude Code
 
 on:
   schedule:
-    - cron: "17 5 * * *"
+    # Monthly: users get newer releases through the update entity; the image only catches up
+    - cron: "17 5 1 * *"
   workflow_dispatch:
 
 permissions:

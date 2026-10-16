@@ -89,7 +89,7 @@ checks the real merge.
   - `image`: amd64 always; aarch64 (native arm runner) only when `cc_agent_host/` or `tests/addon/`
     changed, and nightly. Builds the image and runs `tests/addon/test_image.sh` and `test_isolation.sh`.
   - `CI Gate`: aggregates all jobs; the single check to require in branch protection.
-- `bump-claude-code.yaml`, daily: `tools/bump-claude-code.sh` pins the latest npm release (version,
+- `bump-claude-code.yaml`, monthly (on the 1st; newer releases reach users through the update entity): `tools/bump-claude-code.sh` pins the latest npm release (version,
   checksums), raises the add-on patch version, adds the CHANGELOG entry, opens a pull request and
   dispatches CI for it. No auto-merge.
 - `release.yaml` on tag `vX.Y.Z` (owner only): checks that the tag matches the add-on version, builds the
