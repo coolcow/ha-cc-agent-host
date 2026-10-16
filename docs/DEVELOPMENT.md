@@ -117,7 +117,8 @@ publication time, in this order:
 5. Set `image: ghcr.io/coolcow/{arch}-addon-cc_agent_host` in `config.yaml` (with a version bump), so
    installations pull the prebuilt image instead of building on the device. Before step 4 this would break
    every installation, hence not set yet.
-6. Optional: add-on `icon.png` / `logo.png` and integration brand images (no Anthropic logos or marks).
+6. Optional: add-on `icon.png` / `logo.png` and integration brand images (no Anthropic logos or marks);
+   then drop `ignore: brands` from the `hacs` CI job.
 
 ## Scope
 

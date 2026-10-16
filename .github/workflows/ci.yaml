@@ -125,7 +125,7 @@ jobs:
 
   hacs:
     # HACS reads hacs.json and manifest.json anonymously from raw.githubusercontent.com and needs a
-    # description, topics and brand assets: impossible for a private repository. Runs once it is public.
+    # description and topics: impossible for a private repository. Runs once it is public.
     # Visibility via the API: scheduled runs carry no repository object in the event payload.
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -138,6 +138,8 @@ jobs:
         uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa  # main
         with:
           category: integration
+          # No brand images yet (publishing checklist, optional step); remove once they exist
+          ignore: brands
 
   image:
     needs: [changes, lint, api]
