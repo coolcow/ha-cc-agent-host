@@ -90,10 +90,21 @@ context:
   32-Bit-Claude-Code gibt es nicht.
 - 2 GB RAM oder mehr: ein laufender Claude-Code-Prozess braucht etwa 300–500 MB.
 - Ein Claude-Pro- oder -Max-Abo, gedacht für eine Person, wie es die Bedingungen von Anthropic vorsehen.
-- Im Terminal und in Remote-Control-Sitzungen kann Claude Code deine Konfiguration ändern (nach
-  Rückfrage). Mach Backups, besser noch: halte deine Konfiguration in git.
 
 ## Sicherheit
+
+Es gibt zwei Arbeitsweisen mit unterschiedlichen Rechten:
+
+- **Terminal und Remote Control: du entscheidest.** Claude Code arbeitet in deiner Konfiguration und
+  kann Automationen und andere Dateien anlegen oder ändern, fragt aber vor jeder Änderung und zeigt sie
+  dir vorher. Mach Backups, besser noch: halte deine Konfiguration in git.
+- **Aufträge aus Automationen: nur lesend.** Ein Auftrag läuft als Benutzer ohne Rechte und sieht nur
+  die Daten, die sein Profil bereitstellt (zum Beispiel das Log oder eine gefilterte Kopie der
+  Konfiguration), nie die echte Konfiguration, Geheimnisse, Anmeldung oder Home-Assistant-Tokens. Er
+  kann nur die Werkzeuge nutzen, die das Profil erlaubt, und ändert nichts; jeder Auftrag wird
+  protokolliert.
+
+In beiden Fällen gilt:
 
 - Claude Code ist das **offizielle, unveränderte** Programm von npm, festgelegt mit seiner
   sha512-Prüfsumme.
@@ -102,10 +113,6 @@ context:
   die Usage-API* ([Details](cc_agent_host/DOCS.de.md#plan-nutzung)).
 - **Keine offenen Ports:** Terminal nur über Home-Assistant-Ingress (Admins), Auftrags-Schnittstelle nur
   im internen Netz und mit Token.
-- **Aufträge sind abgeschottet:** ein Benutzer ohne Rechte, ohne Zugriff auf deine Konfiguration,
-  Geheimnisse, Anmeldung oder Home-Assistant-Tokens, nur die Werkzeuge, die das Profil erlaubt, jeder
-  Auftrag protokolliert.
-- **In Home Assistant selbst wird nichts geändert**, weder vom Add-on noch von der Integration.
 
 ## Installation
 

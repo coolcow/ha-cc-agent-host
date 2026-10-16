@@ -17,8 +17,6 @@ von Anthropic, PBC.
   unterstützt. Einen 32-Bit-Build von Claude Code gibt es nicht.
 - 2 GB RAM oder mehr (ein laufender Claude-Code-Prozess braucht etwa 300–500 MB).
 - Ein Claude-Abo (Pro oder Max).
-- In Home Assistant selbst ist nichts zu ändern: keine Konfigurationsänderungen, keine zusätzlichen
-  Integrationen nötig.
 
 ## Erster Start
 

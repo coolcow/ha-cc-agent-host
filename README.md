@@ -88,10 +88,20 @@ context:
   of Claude Code.
 - 2 GB RAM or more: a running Claude Code process needs about 300–500 MB.
 - A Claude Pro or Max subscription, meant for one person, as Anthropic's terms intend.
-- In the terminal and in Remote Control sessions Claude Code can change your configuration (after
-  asking you). Keep backups, or better, keep your configuration in git.
 
 ## Safety
+
+There are two ways to work, with different rights:
+
+- **Terminal and Remote Control: you are in charge.** Claude Code works in your configuration and can
+  create or change automations and other files, but asks before every change and shows it to you first.
+  Keep backups, or better, keep your configuration in git.
+- **Jobs from automations: read-only.** A job runs as an unprivileged user and sees only the data its
+  profile provides (for example the log or a filtered copy of the configuration), never the real
+  configuration, secrets, sign-in or Home Assistant tokens. It can use only the tools the profile allows
+  and changes nothing; every job is logged.
+
+In both cases:
 
 - Claude Code is the **official, unmodified** binary from npm, pinned with its sha512 checksum.
 - **Sign-in only inside Claude Code** (`/login`); the add-on never reads, copies or sends your
@@ -99,9 +109,6 @@ context:
   ([details](cc_agent_host/DOCS.md#plan-usage)).
 - **No open ports:** terminal only through Home Assistant ingress (admins), job API only on the internal
   network with a token.
-- **Jobs are sandboxed:** an unprivileged user without access to your configuration, secrets, login or
-  Home Assistant tokens, only the tools the profile allows, every job logged.
-- **Nothing in Home Assistant itself is changed** by the add-on or the integration.
 
 ## Installation
 
