@@ -33,7 +33,12 @@ check "login stored in /data" '[ "$CLAUDE_CONFIG_DIR" = /data/claude ] && [ "$HO
 check "nginx config valid" "mkdir -p /run/ttyd && nginx -t -c /etc/nginx/nginx.conf"
 check "nginx admits only the ingress gateway" \
     "grep -q 'allow 172.30.32.2;' /etc/nginx/nginx.conf && grep -q 'deny all;' /etc/nginx/nginx.conf"
-check "tools present" "command -v ttyd tmux git jq bashio"
+check "tools present" "command -v ttyd tmux git jq bashio rg yamllint cc-ha"
+check "Claude Code uses the system ripgrep" '[ "$USE_BUILTIN_RIPGREP" = 0 ] && rg --version'
+check "cc-ha runs" "cc-ha help | grep -q 'cc-ha check'"
+check "yamllint accepts Home Assistant tags, rejects duplicate keys" \
+    "cd /tmp && printf 'a: !secret x\\nb: !include_dir_named p\\n' > ok.yaml && yamllint ok.yaml \
+     && printf 'a: 1\\na: 2\\n' > dup.yaml && ! yamllint dup.yaml"
 check "s6 services registered" \
     "for s in init-cc session ttyd nginx api remote-control; do [ -e /etc/s6-overlay/s6-rc.d/user/contents.d/\$s ] || exit 1; done"
 check "scripts executable" \
@@ -60,6 +65,9 @@ rcheck "nginx user can reach ttyd" \
 rcheck "other clients get 403 from nginx" \
     '[ "$(curl -s -o /dev/null -w %{http_code} http://$(hostname -i):8099/)" = 403 ]'
 rcheck "tmux session cc running" 'tmux has-session -t cc'
+rcheck "session instructions and skills installed, managed by the add-on" \
+    'head -n 1 /data/claude/CLAUDE.md | grep -q "Managed by CC Agent Host" \
+     && for s in ha-automation ha-troubleshoot ha-git; do [ -s /data/claude/skills/$s/SKILL.md ] && [ -e /data/claude/skills/$s/.managed ] || exit 1; done'
 rcheck "status bar tabs switch sessions on tap" \
     'tmux show -gv status-right | grep -q "range=user|rc" && tmux list-keys | grep -q "MouseDown1Status.*switch-client -t =rc"'
 rcheck "Remote Control service supervised, idle without the option" \

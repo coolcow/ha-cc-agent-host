@@ -133,6 +133,33 @@ new and the previous version). Remote Control restarts with the new version (ope
 disconnected); the web terminal session uses it after its next start (`/exit`, then `exit`). An add-on
 release with the same or a newer Claude Code version replaces the installed update.
 
+## Home Assistant in the session
+
+The terminal and Remote Control sessions come prepared for Home Assistant; jobs do not get any of this.
+
+- **Instructions** (`CLAUDE.md` in the Claude Code settings): where things are in the configuration,
+  hands off `secrets.yaml`, `.storage/` and the database, check before every reload, reload instead of
+  restart, restart only after you agree, look up entity ids instead of guessing.
+- **`cc-ha`**, a small command for Home Assistant: `cc-ha check` (configuration check), `cc-ha reload
+  [domain ...]` (checks first, then reloads, e.g. `automation`), `cc-ha restart` (checks first),
+  `cc-ha states [glob ...]` (entity ids, states, names) and `cc-ha log` (deduplicated errors and
+  warnings). It uses the add-on's Home Assistant access, which jobs cannot reach.
+- **Skills** Claude Code uses when they fit, or that you call by name: `/ha-automation` (write,
+  validate and reload an automation, script or scene), `/ha-troubleshoot` (narrow down errors and
+  unavailable entities) and `/ha-git` (put the configuration under git with a safe `.gitignore`).
+- **Tools:** `yamllint` (set up for Home Assistant's `!include`/`!secret` tags), `ripgrep`, `git`, `jq`.
+
+The add-on replaces these instructions and skills on every start, so they stay current. To keep your
+own version, edit it and delete the marker: the first line of `CLAUDE.md`, or the file `.managed` in a
+skill's folder. Add your own skills next to them under `skills/`; the add-on leaves those alone.
+
+**Home Assistant's MCP server (optional).** Home Assistant can offer Claude Code its own tools for
+controlling devices ([MCP Server integration](https://home-assistant.io/integrations/mcp_server/)).
+The add-on does not set this up, because those tools switch devices rather than only read, and jobs
+would run them unattended. If you want it in the interactive session, add it yourself as that page
+describes (`claude mcp add` and `claude mcp login` in the terminal). It applies only to your sessions,
+never to jobs, and Claude Code asks before each tool call.
+
 ## Long links
 
 Long links (for example the sign-in link) wrap over several lines, and only the first line

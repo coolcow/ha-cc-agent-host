@@ -36,6 +36,7 @@ touch /usr/local/bin/x 2>/dev/null && r="$r write:bin"
 tmux -S /tmp/tmux-0/default ls >/dev/null 2>&1 && r="$r tmux"
 cat /proc/1/environ >/dev/null 2>&1 && r="$r proc-environ"
 env | grep -q SUPERVISOR && r="$r env:supervisor"
+cc-ha states 2>&1 | grep -q "no Supervisor token" || r="$r cc-ha:token"
 printf "{\"result\":\"user=%s%s\",\"is_error\":false,\"num_turns\":1}" "$(id -un)" "$r"
 SH
     chmod 755 /tmp/fake-claude

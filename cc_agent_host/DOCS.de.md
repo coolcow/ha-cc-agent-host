@@ -140,6 +140,38 @@ Control startet mit der neuen Version neu (offene Cloud-Sitzungen werden getrenn
 Web-Terminal nutzt sie nach ihrem nächsten Start (`/exit`, dann `exit`). Eine Add-on-Version mit
 derselben oder einer neueren Claude-Code-Version ersetzt das installierte Update.
 
+## Home Assistant in der Sitzung
+
+Terminal- und Remote-Control-Sitzungen sind für Home Assistant vorbereitet; Aufträge bekommen davon
+nichts.
+
+- **Anweisungen** (`CLAUDE.md` in den Claude-Code-Einstellungen): wo was in der Konfiguration liegt,
+  Finger weg von `secrets.yaml`, `.storage/` und der Datenbank, vor jedem Neuladen prüfen, neu laden
+  statt neu starten, Neustart nur nach deiner Zustimmung, Entitäts-IDs nachschlagen statt raten.
+- **`cc-ha`**, ein kleiner Befehl für Home Assistant: `cc-ha check` (Konfiguration prüfen), `cc-ha
+  reload [Domäne ...]` (prüft zuerst, lädt dann neu, z. B. `automation`), `cc-ha restart` (prüft
+  zuerst), `cc-ha states [Muster ...]` (Entitäts-IDs, Zustände, Namen) und `cc-ha log` (Fehler und
+  Warnungen, zusammengefasst). Er nutzt den Home-Assistant-Zugang des Add-ons, an den Aufträge nicht
+  herankommen.
+- **Skills**, die Claude Code nutzt, wenn sie passen, oder die du beim Namen aufrufst: `/ha-automation`
+  (Automation, Skript oder Szene schreiben, prüfen und neu laden), `/ha-troubleshoot` (Fehler und nicht
+  verfügbare Entitäten eingrenzen) und `/ha-git` (Konfiguration mit einer sicheren `.gitignore` unter git
+  stellen).
+- **Werkzeuge:** `yamllint` (eingerichtet für die Home-Assistant-Tags `!include`/`!secret`), `ripgrep`,
+  `git`, `jq`.
+
+Das Add-on ersetzt diese Anweisungen und Skills bei jedem Start, damit sie aktuell bleiben. Um eine
+eigene Fassung zu behalten, bearbeite sie und lösche die Markierung: die erste Zeile der `CLAUDE.md` oder
+die Datei `.managed` im Ordner eines Skills. Eigene Skills legst du daneben unter `skills/` ab; die lässt
+das Add-on in Ruhe.
+
+**MCP-Server von Home Assistant (optional).** Home Assistant kann Claude Code eigene Werkzeuge zum
+Steuern von Geräten anbieten ([MCP-Server-Integration](https://home-assistant.io/integrations/mcp_server/)).
+Das Add-on richtet das nicht ein, denn diese Werkzeuge schalten Geräte statt nur zu lesen, und Aufträge
+würden sie unbeaufsichtigt ausführen. Wenn du es in der interaktiven Sitzung willst, füge es selbst
+hinzu, wie auf jener Seite beschrieben (`claude mcp add` und `claude mcp login` im Terminal). Es gilt
+nur für deine Sitzungen, nie für Aufträge, und Claude Code fragt vor jedem Werkzeugaufruf.
+
 ## Lange Links
 
 Lange Links (zum Beispiel der Anmeldelink) werden über mehrere Zeilen umbrochen, und nur die erste Zeile

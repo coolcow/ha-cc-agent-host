@@ -27,6 +27,25 @@ for f in /usr/share/cc_agent_host/profiles/*.yaml; do
     [ -e "/srv/ha/addon_config/profiles/$(basename "$f")" ] || cp "$f" /srv/ha/addon_config/profiles/
 done
 
+# Home Assistant instructions and skills for the interactive session (not for jobs: they use
+# /data/agent/claude). Replaced on every start while they carry the add-on's marker; the user takes one
+# over by deleting the marker (first line of CLAUDE.md, file .managed in a skill).
+session=/usr/share/cc_agent_host/session
+marker="$(head -n 1 "$session/instructions.md")"
+if [ ! -e "$CLAUDE_CONFIG_DIR/CLAUDE.md" ] || [ "$(head -n 1 "$CLAUDE_CONFIG_DIR/CLAUDE.md")" = "$marker" ]; then
+    cp "$session/instructions.md" "$CLAUDE_CONFIG_DIR/CLAUDE.md"
+fi
+mkdir -p "$CLAUDE_CONFIG_DIR/skills"
+for src in "$session"/skills/*/; do
+    dest="$CLAUDE_CONFIG_DIR/skills/$(basename "$src")"
+    if [ ! -e "$dest" ] || [ -e "$dest/.managed" ]; then
+        rm -rf "$dest"
+        cp -r "$src" "$dest"
+        echo "Managed by CC Agent Host: replaced on every add-on start. Delete this file to keep your own version." \
+            > "$dest/.managed"
+    fi
+done
+
 # Claude Code installed through the update entity: drop it once the image brings the same or a newer version
 if [ -L /data/cli/current ]; then
     installed="$(readlink /data/cli/current)"

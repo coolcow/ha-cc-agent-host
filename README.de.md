@@ -26,6 +26,9 @@ synchronisieren.
 
 - **Web-Terminal in der Seitenleiste**, auf jedem Gerät, das Home Assistant öffnet. Die Sitzung läuft
   weiter, wenn du den Tab schließt.
+- **Auf Home Assistant vorbereitet:** Anweisungen, Skills und der Befehl `cc-ha` lassen Claude Code im
+  Terminal und in Remote Control die Konfiguration prüfen und neu laden, Entitäten nachschlagen und
+  das Log lesen.
 - **Remote Control (optional):** Sitzungen aus claude.ai/code oder der Claude-App auf dem Handy öffnen.
 - **Aufträge aus Automationen:** Die Aktion `cc_agent_host.run` schickt einen Prompt und gibt die Antwort
   an deine Automation zurück. Aufträge laufen nur lesend in einer abgeschotteten Umgebung.

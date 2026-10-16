@@ -57,9 +57,9 @@ failure digest plus the full log in `.agent-logs/` on failure). Setup once: `scr
 |---|---|---|
 | `lint` | shellcheck, hadolint, yamllint (strict), actionlint, ruff | `scripts/agent/check lint` |
 | `repo` | consistency: versions, CHANGELOG, Dockerfile pin, translations, naming, German docs in sync; privacy (below) | `scripts/agent/test repo` |
-| `api` | job API (pytest): auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens | `scripts/agent/test api` |
+| `api` | job API (pytest): auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens; `cc-ha` against a fake Supervisor | `scripts/agent/test api` |
 | `integration` | pytest-homeassistant-custom-component (Python 3.14, mocked API; container if needed) | `scripts/agent/test integration` |
-| `image` | builds, Claude Code runs, nginx config valid, ttyd socket mode, services, no ports; job isolation | `scripts/agent/check image` |
+| `image` | builds, Claude Code runs, nginx config valid, ttyd socket mode, services, no ports, session instructions and skills installed; job isolation (incl. `cc-ha` without token) | `scripts/agent/check image` |
 | – | hassfest; HACS validation (public repository only) | CI only |
 | On device | read-only smoke test after installing (versions, state, job API, sensors) | `tools/smoke-device.sh <ha-host>` |
 

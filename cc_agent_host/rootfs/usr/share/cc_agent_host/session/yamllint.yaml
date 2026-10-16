@@ -1,0 +1,18 @@
+# yamllint for the Home Assistant configuration in the interactive session (YAMLLINT_CONFIG_FILE).
+# Syntax, duplicate keys and indentation; style rules that Home Assistant and its UI editors do not follow
+# are off.
+extends: relaxed
+ignore: |
+  .storage/
+  deps/
+  custom_components/
+rules:
+  line-length: disable
+  truthy: disable
+  document-start: disable
+  empty-lines: disable
+  trailing-spaces: disable
+  new-line-at-end-of-file: disable
+  indentation:
+    spaces: consistent
+    indent-sequences: whatever

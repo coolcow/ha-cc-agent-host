@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+"""Home Assistant helper for the interactive session (web terminal, Remote Control).
+
+Talks to Home Assistant through the Supervisor proxy with the add-on's own token. Not reachable for
+jobs: the job user cc_agent cannot read that token.
+
+Usage:
+    cc-ha check                  check the configuration (exit code 1 when invalid)
+    cc-ha reload [DOMAIN ...]    check, then reload the domains (e.g. automation script); none: reload all
+    cc-ha restart                check, then restart Home Assistant
+    cc-ha states [PATTERN ...]   entity_id, state and name; patterns are globs (light.*, *kitchen*)
+    cc-ha log [LEVEL ...]        deduplicated system log entries (default: ERROR CRITICAL WARNING)
+"""
+import fnmatch
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+
+SUPERVISOR = os.environ.get("CC_SUPERVISOR", "http://supervisor")
+TOKEN_FILE = Path(os.environ.get("CC_TOKEN_FILE", "/run/s6/container_environment/SUPERVISOR_TOKEN"))
+
+
+def token():
+    if os.environ.get("SUPERVISOR_TOKEN"):
+        return os.environ["SUPERVISOR_TOKEN"]
+    try:
+        return TOKEN_FILE.read_text().strip()
+    except OSError:
+        sys.exit("cc-ha: no Supervisor token (only available in the add-on's interactive session)")
+
+
+def api(method, path, body=None):
+    req = urllib.request.Request(
+        f"{SUPERVISOR}/core/api{path}", method=method,
+        data=None if body is None else json.dumps(body).encode(),
+        headers={"Authorization": f"Bearer {token()}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            raw = r.read()
+    except urllib.error.HTTPError as e:
+        sys.exit(f"cc-ha: {method} {path}: HTTP {e.code} {e.read().decode(errors='replace')[:300]}")
+    except OSError as e:
+        sys.exit(f"cc-ha: {method} {path}: {e}")
+    return json.loads(raw) if raw else None
+
+
+def websocket(command):
+    import asyncio
+
+    import aiohttp
+
+    async def call():
+        async with aiohttp.ClientSession() as session, session.ws_connect(
+                SUPERVISOR.replace("http", "ws", 1) + "/core/websocket", max_msg_size=64 << 20) as ws:
+            await ws.receive_json()  # auth_required
+            await ws.send_json({"type": "auth", "access_token": token()})
+            if (await ws.receive_json()).get("type") != "auth_ok":
+                raise RuntimeError("websocket auth failed")
+            await ws.send_json({"id": 1, **command})
+            msg = await ws.receive_json()
+            if not msg.get("success"):
+                raise RuntimeError(f"websocket command failed: {msg.get('error')}")
+            return msg["result"]
+
+    try:
+        return asyncio.run(asyncio.wait_for(call(), 30))
+    except Exception as e:  # one line for the user instead of a traceback
+        sys.exit(f"cc-ha: {command['type']}: {e}")
+
+
+def check():
+    r = api("POST", "/config/core/check_config")
+    if r.get("result") == "valid":
+        print("Configuration valid")
+        if r.get("warnings"):
+            print(f"Warnings:\n{r['warnings']}")
+        return True
+    print(f"Configuration invalid:\n{r.get('errors')}")
+    return False
+
+
+def reload(domains):
+    if not check():
+        return 1
+    for domain in domains or ["homeassistant"]:
+        api("POST", f"/services/{domain}/{'reload_all' if domain == 'homeassistant' else 'reload'}", {})
+        print(f"Reloaded {domain if domains else 'all YAML configuration'}")
+    return 0
+
+
+def restart():
+    if not check():
+        return 1
+    try:
+        api("POST", "/services/homeassistant/restart", {})
+    except SystemExit:  # the connection may drop while Home Assistant stops
+        pass
+    print("Home Assistant is restarting")
+    return 0
+
+
+def states(patterns):
+    for s in sorted(api("GET", "/states"), key=lambda s: s["entity_id"]):
+        if not patterns or any(fnmatch.fnmatch(s["entity_id"], p) for p in patterns):
+            name = s.get("attributes", {}).get("friendly_name", "")
+            print(f"{s['entity_id']}\t{s['state']}\t{name}")
+    return 0
+
+
+def log(levels):
+    levels = [lv.upper() for lv in levels] or ["ERROR", "CRITICAL", "WARNING"]
+    entries = [e for e in websocket({"type": "system_log/list"}) if e.get("level") in levels]
+    for e in sorted(entries, key=lambda e: e.get("timestamp", 0)):
+        when = datetime.fromtimestamp(e.get("timestamp", 0)).strftime("%Y-%m-%d %H:%M:%S")
+        source = ":".join(str(x) for x in e.get("source") or [])
+        print(f"{when} {e.get('level')} {e.get('name')} ({e.get('count', 1)}x) {source}")
+        for message in e.get("message") or []:
+            print(f"    {message}")
+        if e.get("exception"):
+            print("    " + e["exception"].strip().replace("\n", "\n    "))
+    print(f"{len(entries)} entries ({', '.join(levels)})")
+    return 0
+
+
+def main(argv):
+    cmd, args = (argv[0], argv[1:]) if argv else ("help", [])
+    commands = {"check": lambda: 0 if check() else 1, "reload": lambda: reload(args), "restart": restart,
+                "states": lambda: states(args), "log": lambda: log(args)}
+    if cmd not in commands:
+        print(__doc__.strip())
+        return 0 if cmd in ("help", "-h", "--help") else 2
+    return commands[cmd]()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

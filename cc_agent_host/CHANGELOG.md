@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0
+
+- The terminal and Remote Control sessions come prepared for Home Assistant: instructions (`CLAUDE.md`
+  in the Claude Code settings: layout of the configuration, hands off secrets and `.storage/`, check
+  before reload, restart only after consent) and the skills `ha-automation`, `ha-troubleshoot` and
+  `ha-git`. The add-on refreshes them on every start unless you take one over by deleting its marker.
+- New command `cc-ha` for the session: `check`, `reload [domain ...]` and `restart` (both check first),
+  `states [glob ...]` and `log`. It uses the add-on's Home Assistant access; jobs cannot use it.
+- `yamllint` (configured for Home Assistant's tags) and `ripgrep` in the image; Claude Code uses the
+  system ripgrep (`USE_BUILTIN_RIPGREP=0`, the official setup for Alpine).
+- Docs: how to add Home Assistant's own MCP server to the interactive session yourself, and why the
+  add-on does not.
+
 ## 0.7.0
 
 - Claude Code updates without an add-on release: the job API reports the latest Claude Code version

@@ -1,6 +1,6 @@
 FROM ghcr.io/home-assistant/base:3.24
 
-RUN apk add --no-cache bash git jq nginx py3-aiohttp py3-yaml python3 su-exec tmux ttyd
+RUN apk add --no-cache bash git jq nginx py3-aiohttp py3-yaml python3 ripgrep su-exec tmux ttyd yamllint
 
 # Unprivileged user for jobs; the HA configuration is mounted below /srv/ha (root only)
 RUN adduser -D -H -h /data/agent/home -s /sbin/nologin -u 1000 cc_agent \
@@ -27,10 +27,13 @@ RUN case "$(apk --print-arch)" in \
     && /usr/lib/cc_agent_host/claude --version
 
 ARG BUILD_VERSION=dev
+# USE_BUILTIN_RIPGREP=0: Claude Code on musl uses the system ripgrep (official setup for Alpine)
 ENV CC_VERSION=$BUILD_VERSION \
     HOME=/data/home \
     CLAUDE_CONFIG_DIR=/data/claude \
     DISABLE_AUTOUPDATER=1 \
+    USE_BUILTIN_RIPGREP=0 \
+    YAMLLINT_CONFIG_FILE=/usr/share/cc_agent_host/session/yamllint.yaml \
     LANG=C.UTF-8
 
 COPY rootfs /

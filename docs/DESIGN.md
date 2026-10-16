@@ -27,6 +27,7 @@ Rules from Anthropic that the design follows:
 | Claude Code | official native musl binary from npm, version and sha512 pinned in the Dockerfile; newer official releases installable through the update entity into `/data/cli`, verified the same way |
 | Sign-in | `/login` in the terminal; credentials stay in `/data` (root only) |
 | Terminal | ttyd + tmux, **ingress only** (nginx admits only the ingress gateway) |
+| Session know-how | Home Assistant instructions (`CLAUDE.md`) and skills copied into the interactive Claude Code settings on start (replaced while they carry the add-on's marker); `cc-ha` (check, reload, restart, states, system log through the Supervisor proxy with the add-on token, which only root sessions have); `yamllint` with a Home Assistant config, system `ripgrep`. Nothing of it reaches jobs |
 | Remote Control | option `remote_control`: separate service `claude remote-control` in server mode in `/homeassistant`, sessions on demand |
 | Job API | small HTTP service (Python stdlib, `py3-yaml`, `py3-aiohttp`), internal network only, bearer token, announced to the integration via Supervisor discovery |
 | Profiles | YAML files in the add-on configuration folder, extendable without changing the add-on |

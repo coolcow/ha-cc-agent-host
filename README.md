@@ -23,6 +23,8 @@ It sees the real files and logs; no copying YAML into a chat, no syncing to anot
 
 - **Web terminal in the sidebar**, on any device that opens Home Assistant. The session keeps running
   when you close the tab.
+- **Prepared for Home Assistant:** instructions, skills and the `cc-ha` command let Claude Code check and
+  reload the configuration, look up entities and read the log in the terminal and Remote Control.
 - **Remote Control (optional):** open a session from claude.ai/code or the Claude app on your phone.
 - **Jobs from automations:** the action `cc_agent_host.run` sends a prompt and returns the answer to your
   automation. Jobs run read-only in a sandbox.
