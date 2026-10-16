@@ -5,6 +5,12 @@ A Home Assistant app (add-on) plus a small companion integration that let you us
 Claude Code CLI with your own Claude subscription: in the Home Assistant sidebar, from the Claude app
 on your phone, and from your automations.
 
+**Stop building dashboards, automations and scripts by hand like it's the Stone Age.** Tell Claude what
+you want, then just use it. Claude Code builds it right in your configuration, keeps an eye on things
+with scheduled jobs and suggests improvements, so your setup gets better with every round of using it
+and talking it over. And unlike an assistant connected from outside via MCP, everything runs inside
+Home Assistant: nothing else to install, no second computer.
+
 *Deutsch: [README.de.md](README.de.md)*
 
 > Not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic, PBC.

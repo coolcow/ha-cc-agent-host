@@ -2,6 +2,10 @@
 
 Runs the official, unmodified Claude Code CLI inside Home Assistant with your own Claude subscription.
 
+**Stop building dashboards and automations by hand.** Tell Claude what you want, then just use it:
+Claude Code builds it in your configuration, keeps an eye on things and suggests improvements, all
+inside Home Assistant, with nothing else to install.
+
 Claude Code works directly in your Home Assistant configuration: it sees the real files and logs, writes
 and fixes YAML, and explains why an automation did not fire. No copying YAML into a chat window, no
 syncing your configuration to another computer, and every change needs your approval.

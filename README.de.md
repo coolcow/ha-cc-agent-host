@@ -5,6 +5,13 @@ Eine Home-Assistant-App (Add-on) mit einer kleinen Begleit-Integration, mit der 
 Claude-Code-CLI mit deinem eigenen Claude-Abo nutzt: in der Seitenleiste von Home Assistant, aus der
 Claude-App auf dem Handy und aus deinen Automationen.
 
+**Schluss damit, Dashboards, Automationen und Skripte wie in der Steinzeit von Hand zu bauen.** Sag
+Claude, was du haben willst, und nutze es einfach. Claude Code baut es direkt in deiner Konfiguration,
+behält die Dinge mit geplanten Aufträgen im Blick und schlägt Verbesserungen vor; so wird deine
+Installation mit jeder Runde Benutzen und Besprechen besser. Und anders als ein per MCP von außen
+angebundener Assistent läuft alles in Home Assistant selbst: nichts weiter zu installieren, kein zweiter
+Rechner.
+
 *English: [README.md](README.md)*
 
 > Nicht mit Anthropic verbunden und nicht von Anthropic unterstützt. Claude und Claude Code sind Marken
