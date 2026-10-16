@@ -82,8 +82,10 @@ the check covers them without publishing them. Commit with your GitHub no-reply 
 - `bump-claude-code.yaml`, daily: `tools/bump-claude-code.sh` pins the latest npm release (version,
   checksums), raises the add-on patch version, adds the CHANGELOG entry, opens a pull request and
   dispatches CI for it. No auto-merge.
-- `release.yaml` on tag `v*` *(planned)*: builds multi-arch images and pushes them to GHCR. Later, set
-  `image:` in `config.yaml` so users pull prebuilt images instead of building on device.
+- `release.yaml` on tag `vX.Y.Z` (owner only): checks that the tag matches the add-on version, builds the
+  image natively for amd64 and aarch64, runs `test_image.sh` and `test_isolation.sh` against it and pushes
+  `ghcr.io/coolcow/{arch}-addon-cc_agent_host:X.Y.Z` and `:latest`. A manual run (`workflow_dispatch`, any
+  branch) builds and tests without pushing.
 - Dependabot for GitHub Actions (pinned to commit SHAs), the integration test harness and the base image.
   Base image bumps need a version + CHANGELOG commit before merge.
 
@@ -91,6 +93,21 @@ the check covers them without publishing them. Commit with your GitHub no-reply 
 
 - App version: SemVer in `config.yaml`, tag `vX.Y.Z`.
 - Claude Code version bumps raise the patch version.
+
+## Publishing checklist
+
+The repository is prepared for publication but stays private until the owner decides otherwise. Steps at
+publication time, in this order:
+
+1. `tests/repo/test_privacy.py` green with the owner's `.private-patterns` (tree, history, commit metadata).
+2. Repository description and topics (needed by HACS), e.g. `home-assistant`, `hacs`, `home-assistant-addon`,
+   `claude-code`; enable private vulnerability reporting (Settings → Security), see `SECURITY.md`.
+3. Visibility public; the `hacs` CI job then validates the integration.
+4. First release: tag `vX.Y.Z` on `main` → `release.yaml` pushes the images; make both GHCR packages public.
+5. Set `image: ghcr.io/coolcow/{arch}-addon-cc_agent_host` in `config.yaml` (with a version bump), so
+   installations pull the prebuilt image instead of building on the device. Before step 4 this would break
+   every installation, hence not set yet.
+6. Optional: add-on `icon.png` / `logo.png` and integration brand images (no Anthropic logos or marks).
 
 ## Scope
 

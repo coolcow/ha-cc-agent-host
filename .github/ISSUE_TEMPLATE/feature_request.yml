@@ -1,0 +1,20 @@
+name: Feature request
+description: An idea for the add-on or the integration.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        The add-on stays a generic runtime for Claude Code. Use cases such as dashboards or specific
+        automations belong in your own Home Assistant configuration; generic building blocks for them
+        (context data, profiles, sensors) are welcome here.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do, and what stops you today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution

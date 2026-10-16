@@ -125,6 +125,7 @@ automation:
   Plan-Nutzung, Updates, Sicherheit ([English](cc_agent_host/DOCS.md))
 - [Design](docs/DESIGN.md) (englisch): Ziele, Aufbau und die Gründe für die wichtigsten Entscheidungen
 - [Entwicklung](docs/DEVELOPMENT.md) (englisch): Tests, CI, Versionierung, lokale Installation
+- [Sicherheitsrichtlinie](SECURITY.md) (englisch): wie du eine Schwachstelle meldest
 
 ## Entwicklung
 

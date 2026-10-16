@@ -116,6 +116,7 @@ automation:
   usage, updates, security ([Deutsch](cc_agent_host/DOCS.de.md))
 - [Design](docs/DESIGN.md): goals, architecture and the reasoning behind the main decisions
 - [Development](docs/DEVELOPMENT.md): tests, CI, versioning, local installation
+- [Security policy](SECURITY.md): how to report a vulnerability
 
 ## Development
 
