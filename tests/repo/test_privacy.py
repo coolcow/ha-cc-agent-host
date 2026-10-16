@@ -13,9 +13,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}", re.I)
-# No-reply and example addresses, plus the maintainer's public contact address (SECURITY.md)
+# No-reply, bot (Dependabot sign-off) and example addresses, plus the maintainer's public contact address
 ALLOWED_EMAIL = re.compile(
-    r"(@users\.noreply\.github\.com|^noreply@(github|anthropic)\.com|@example\.(com|org)|^mail@coolcow\.org)$", re.I)
+    r"(@users\.noreply\.github\.com|^(noreply|support)@github\.com|^noreply@anthropic\.com"
+    r"|@example\.(com|org)|^mail@coolcow\.org)$", re.I)
 # 172.30.32.0/23 is the Supervisor's internal network, the same on every installation
 GENERIC = {
     "private IPv4 address": re.compile(
