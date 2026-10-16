@@ -1,5 +1,5 @@
 // Dev container: Python 3.14 (Home Assistant integration tests run natively), Docker CLI → host Docker
-// (lint images, add-on image build), gh and Claude Code. Same pattern as the other coolcow repositories
+// (lint images, add-on image build), gh and Claude Code
 // (shared login volumes, no host credentials). Usage: README, section "Development".
 {
   "name": "ha-cc-agent-host",

@@ -3,6 +3,10 @@
 Runs the official, unmodified Claude Code CLI inside Home Assistant with your own
 Claude subscription: a web terminal, optional Remote Control and jobs from automations.
 
+Claude Code works directly in your Home Assistant configuration: it sees the real files and logs, so
+you no longer copy YAML into a chat window or sync your configuration to another computer. You watch
+and approve every change. *Deutsch: [DOCS.de.md](DOCS.de.md)*
+
 Not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks
 of Anthropic, PBC.
 
@@ -36,6 +40,20 @@ The server runs in its own tmux session `rc`. The first time, Claude Code asks
 `/homeassistant`); the add-on log then says so. Only you answer these questions: open the web terminal,
 tap **Remote Control** at the bottom right of the status bar, answer, and tap **Terminal** to return
 (works on phones too; on a keyboard, `Ctrl-b s` switches as well).
+
+## Companion integration
+
+Jobs and sensors need the companion integration (install through HACS as a custom repository with the
+URL of this add-on repository, type *Integration*, then restart Home Assistant). The add-on announces
+itself, so the integration appears under Settings → Devices & services, ready to confirm; no address
+or key to type in. It adds:
+
+- the action **`cc_agent_host.run`** (`profile`, `prompt`, optional `timeout` in seconds), which returns
+  `ok`, `result` and `error` to your automation (`response_variable`);
+- binary sensors **Signed in**, **Job token** and **Job running**;
+- sensors for plan usage (5-hour and weekly window in %, reset times, usage credit with the usage API
+  option, usage source, plan);
+- the update entity **CLI** for Claude Code updates (see below).
 
 ## Jobs
 
@@ -130,4 +148,9 @@ automatically. Paste it into a new browser tab; the line breaks are removed on p
 ## Security
 
 - The web terminal is reachable only through Home Assistant ingress (admins only).
-- No ports are exposed.
+- No ports are exposed; the job API is reachable only on the internal add-on network, with a token.
+- Claude Code is the official, unmodified binary, verified by its sha512 checksum; the add-on never
+  reads, copies or sends your sign-in, except with the opt-in usage API option described above.
+- Jobs cannot change anything: see [How jobs are isolated](#how-jobs-are-isolated).
+- In the terminal and in Remote Control sessions Claude Code works with your permissions on your
+  configuration and asks before each change. Keep backups, ideally your configuration in git.

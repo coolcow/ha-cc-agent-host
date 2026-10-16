@@ -191,3 +191,13 @@ def test_cc_abbreviation_not_explained():
             for n, line in enumerate((ROOT / f).read_text(errors="ignore").splitlines(), 1)
             if pattern.search(line)]
     assert not hits, hits
+
+
+@pytest.mark.parametrize("english", [ROOT / "README.md", ADDON / "DOCS.md"], ids=["README", "DOCS"])
+def test_german_translation_in_sync(english):
+    """Public docs are English with a German translation `*.de.md`: same section structure, linked both ways."""
+    german = english.with_suffix(".de.md")
+    levels = [[line.split(" ", 1)[0] for line in p.read_text().splitlines() if re.match(r"#+ ", line)]
+              for p in (english, german)]
+    assert levels[0] == levels[1], f"{german.name}: headings differ from {english.name}"
+    assert german.name in english.read_text() and english.name in german.read_text()

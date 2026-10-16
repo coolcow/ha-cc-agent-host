@@ -3,7 +3,8 @@
 Home Assistant app (add-on) that runs the official Claude Code CLI inside Home Assistant with the
 user's own subscription (web terminal via ingress, optional Remote Control, headless jobs with
 permission profiles), plus a thin companion integration (`cc_agent_host.run` action, sensors).
-Private repository, not published yet. Owner-facing plan and decisions (German): `docs/PLAN.md`.
+Not published yet. Design and decisions: `docs/DESIGN.md`. Public docs are English, with German
+translations in separate `*.de.md` files (`README.de.md`, `cc_agent_host/DOCS.de.md`) kept in sync.
 
 ```
 cc_agent_host/                    the add-on: config.yaml (version, options, permissions), Dockerfile
@@ -20,7 +21,7 @@ tests/integration/                pytest-homeassistant-custom-component (Python 
 tests/addon/                      image checks + isolation test against the built image (docker)
 tests/repo/                       consistency: versions/CHANGELOG, Claude Code pin, translations, naming
 scripts/agent/                    check/test wrappers (below)      tools/   bump, lint/test aliases
-docs/                             PLAN.md, DEVELOPMENT.md, agentic-roadmap.md
+docs/                             DESIGN.md, DEVELOPMENT.md
 ```
 
 ## Commands
@@ -54,7 +55,8 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
    changed integration → `version` in `custom_components/cc_agent_host/manifest.json` raised + entry in its
    `CHANGELOG.md` (newest first; Markdown-only changes exempt). `scripts/agent/version-check` passes.
 3. New/changed behavior has tests (`tests/api`, `tests/integration`, `tests/addon`, `tests/repo`).
-4. Docs updated: `cc_agent_host/DOCS.md` (user-facing), `README.md`, `docs/DEVELOPMENT.md`; new option →
+4. Docs updated: `cc_agent_host/DOCS.md` + `DOCS.de.md` (user-facing), `README.md` + `README.de.md`,
+   `docs/DEVELOPMENT.md`; new option →
    `config.yaml` schema + `translations/en.yaml` and `de.yaml`; new entity/service field → `strings.json`,
    `translations/en.json` (identical to strings.json) and `de.json`.
 5. Small, themed pull request, Conventional Commits in English, motivation in the body.
@@ -77,6 +79,10 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
   `cc_agent_host`. Descriptions may name Anthropic products factually ("Claude Code", "Claude app",
   "Claude credentials"); never imply affiliation. Never explain the abbreviation "cc". Enforced in part
   by `tests/repo`.
+- **No private or local information** in files, commits or commit metadata: no personal names or e-mail
+  addresses (commit with a GitHub no-reply address), host names, IP addresses, home paths or details of
+  anyone's own setup. Enforced by `tests/repo/test_privacy.py`; personal terms live only in the untracked
+  `.private-patterns`.
 - **Use cases are not part of this repository** (usage statistics, log digests, dashboards, …): they are
   Home Assistant configuration in the user's own setup. The add-on stays generic.
 - **64-bit only** (aarch64, amd64): there is no 32-bit Claude Code.
@@ -101,5 +107,5 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
 - Local installation on a device: `tools/deploy.sh` (guards: clean tree, full check, newer version; never
   restarts HA), details in `docs/DEVELOPMENT.md`. Only on explicit instruction, see above.
 
-Background docs: `docs/PLAN.md` (goals, decisions A/B/C, permissions table, backlog),
-`docs/DEVELOPMENT.md` (tests, CI, versioning), `docs/agentic-roadmap.md` (tooling decisions).
+Background docs: `docs/DESIGN.md` (goals, architecture, decisions A/B/C, permissions table),
+`docs/DEVELOPMENT.md` (tests, CI, versioning).

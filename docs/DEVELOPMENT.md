@@ -4,14 +4,14 @@
 
 - Claude Code is the official native build, pinned and checksum-verified, never modified.
 - Sign-in happens only inside Claude Code. No project code reads, copies or sends credentials
-  (exception: the opt-in usage option B2, see `PLAN.md`, off by default and off in releases).
+  (exception: the opt-in option `usage_api`, see `DESIGN.md`, off by default and off in releases).
 - Small image, minimal privileges, no exposed ports.
 - Use cases (usage statistics, log digests, …) are Home Assistant configuration, not part of
   the app.
 
 ## Local installation (Home Assistant OS)
 
-Only on the owner's decision. Needs SSH access to the device (Terminal & SSH app).
+Only on the maintainer's decision. Needs SSH access to the device (Terminal & SSH app).
 
 ```bash
 tools/deploy.sh <ha-host> --dry-run        # guards only, prints the remote commands
@@ -25,7 +25,7 @@ than the installed one (`--redeploy` allows the same version, never an older one
 *committed* files (`git archive`) to `/local_apps/cc_agent_host` and `/homeassistant/custom_components/cc_agent_host`
 (staged, so removed files do not linger) and runs `ha store reload` plus `ha apps install|update|rebuild
 local_cc_agent_host` (Supervisor refuses `rebuild` after a version change). It never restarts Home
-Assistant; a new integration version needs `ha core restart`, done by the owner. Afterwards it runs the
+Assistant; a new integration version needs `ha core restart`, done by the maintainer. Afterwards it runs the
 smoke test. Both scripts are tested against a fake device in `tests/repo/test_device_tools.py`.
 
 Manual equivalent:
@@ -49,7 +49,7 @@ failure digest plus the full log in `.agent-logs/` on failure). Setup once: `scr
 | Step | What | Command |
 |---|---|---|
 | `lint` | shellcheck, hadolint, yamllint (strict), actionlint, ruff | `scripts/agent/check lint` |
-| `repo` | consistency: versions, CHANGELOG, Dockerfile pin, translations, naming | `scripts/agent/test repo` |
+| `repo` | consistency: versions, CHANGELOG, Dockerfile pin, translations, naming, German docs in sync; privacy (below) | `scripts/agent/test repo` |
 | `api` | job API (pytest): auth, IP guard, limits, profiles; security: profile `read` cannot write, run commands, read secrets or reach tokens | `scripts/agent/test api` |
 | `integration` | pytest-homeassistant-custom-component (Python 3.14, mocked API; container if needed) | `scripts/agent/test integration` |
 | `image` | builds, Claude Code runs, nginx config valid, ttyd socket mode, services, no ports; job isolation | `scripts/agent/check image` |
@@ -59,6 +59,16 @@ failure digest plus the full log in `.agent-logs/` on failure). Setup once: `scr
 `scripts/agent/check` runs all steps (fail-fast), `scripts/agent/check fast` only lint, repo and api.
 Narrow tests with pytest selectors: `scripts/agent/test tests/api/test_server.py -k profile`.
 Latest CI failure of the current branch: `scripts/agent/ci-failures` (needs `gh auth login`).
+
+## Privacy
+
+`tests/repo/test_privacy.py` fails on private or local information in the working tree, in every commit
+reachable from any ref, and in commit authors and messages: e-mail addresses other than GitHub/example
+no-reply addresses, private IP addresses (except the Supervisor network 172.30.32.0/23), local host names
+(`*.lan`, `*.home`, `*.internal`), home directories. Personal terms (names, own domains, host names) go
+into the untracked file `.private-patterns` at the repository root, one regular expression per line, so
+the check covers them without publishing them. Commit with your GitHub no-reply address
+(`git config user.email <id>+<login>@users.noreply.github.com`).
 
 ## CI (GitHub Actions)
 

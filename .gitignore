@@ -5,3 +5,6 @@ __pycache__/
 
 # agent wrapper logs (scripts/agent/*)
 .agent-logs/
+
+# personal terms for tests/repo/test_privacy.py (never committed)
+.private-patterns
