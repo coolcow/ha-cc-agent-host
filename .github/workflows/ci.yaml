@@ -138,7 +138,7 @@ jobs:
         uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa  # main
         with:
           category: integration
-          # No brand images yet (publishing checklist, optional step); remove once they exist
+          # No brand images yet (docs/DEVELOPMENT.md, Releasing); remove once they exist
           ignore: brands
 
   image:

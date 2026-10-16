@@ -120,11 +120,8 @@ In both cases:
 
 ## Installation
 
-The repository is not published yet; the steps below describe the setup once it is.
-
 1. **App:** Settings → Apps → app store → ⋮ → Repositories, add
    `https://github.com/coolcow/ha-cc-agent-host`, then install **CC Agent Host** and start it.
-   The image is built on your device during installation; that takes a few minutes.
 2. **Sign in:** open **CC Agent Host** in the sidebar, type `/login` and finish the sign-in in your browser.
 3. **Integration (optional, for jobs and sensors):** in HACS → ⋮ → Custom repositories, add the same URL
    as type *Integration*, install **CC Agent Host** and restart Home Assistant. The add-on is then

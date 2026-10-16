@@ -3,7 +3,7 @@
 Home Assistant app (add-on) that runs the official Claude Code CLI inside Home Assistant with the
 user's own subscription (web terminal via ingress, optional Remote Control, headless jobs with
 permission profiles), plus a thin companion integration (`cc_agent_host.run` action, sensors).
-Not published yet. Design and decisions: `docs/DESIGN.md`. Public docs are English, with German
+Published (public repository, releases via `release.yaml`). Design and decisions: `docs/DESIGN.md`. Public docs are English, with German
 translations in separate `*.de.md` files (`README.de.md`, `cc_agent_host/DOCS.de.md`) kept in sync.
 
 ```

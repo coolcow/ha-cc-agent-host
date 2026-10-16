@@ -104,21 +104,16 @@ checks the real merge.
 - App version: SemVer in `config.yaml`, tag `vX.Y.Z`.
 - Claude Code version bumps raise the patch version.
 
-## Publishing checklist
+## Releasing
 
-The repository is prepared for publication but stays private until the owner decides otherwise. Steps at
-publication time, in this order:
+`config.yaml` sets `image: ghcr.io/coolcow/{arch}-addon-cc_agent_host`, so installations pull the image
+tagged with the add-on version instead of building it. Every add-on version that reaches `main` therefore
+needs its release: tag `vX.Y.Z` (owner's instruction) → `release.yaml` builds, tests and pushes the images.
+Until the tag is pushed, the Supervisor offers an update whose image does not exist yet. Keep both GHCR
+packages public and `tests/repo/test_privacy.py` green with the owner's `.private-patterns`.
 
-1. `tests/repo/test_privacy.py` green with the owner's `.private-patterns` (tree, history, commit metadata).
-2. Repository description and topics (needed by HACS), e.g. `home-assistant`, `hacs`, `home-assistant-addon`,
-   `claude-code`; enable private vulnerability reporting (Settings → Security), see `SECURITY.md`.
-3. Visibility public; the `hacs` CI job then validates the integration.
-4. First release: tag `vX.Y.Z` on `main` → `release.yaml` pushes the images; make both GHCR packages public.
-5. Set `image: ghcr.io/coolcow/{arch}-addon-cc_agent_host` in `config.yaml` (with a version bump), so
-   installations pull the prebuilt image instead of building on the device. Before step 4 this would break
-   every installation, hence not set yet.
-6. Optional: add-on `icon.png` / `logo.png` and integration brand images (no Anthropic logos or marks);
-   then drop `ignore: brands` from the `hacs` CI job.
+Optional: add-on `icon.png` / `logo.png` and integration brand images (no Anthropic logos or marks); then
+drop `ignore: brands` from the `hacs` CI job.
 
 ## Scope
 

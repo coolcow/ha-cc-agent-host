@@ -126,11 +126,9 @@ In beiden Fällen gilt:
 
 ## Installation
 
-Das Repository ist noch nicht veröffentlicht; die Schritte beschreiben die Einrichtung danach.
-
 1. **App:** Einstellungen → Apps → App-Store → ⋮ → Repositories, dort
    `https://github.com/coolcow/ha-cc-agent-host` hinzufügen, dann **CC Agent Host** installieren und
-   starten. Das Image wird bei der Installation auf deinem Gerät gebaut; das dauert ein paar Minuten.
+   starten.
 2. **Anmelden:** **CC Agent Host** in der Seitenleiste öffnen, `/login` eingeben und die Anmeldung im
    Browser abschließen.
 3. **Integration (optional, für Aufträge und Sensoren):** in HACS → ⋮ → Benutzerdefinierte Repositories

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1
+
+- First public release. Installations pull the prebuilt image for their architecture from GitHub
+  Container Registry instead of building it on the device.
+
 ## 0.8.0
 
 - The terminal and Remote Control sessions come prepared for Home Assistant: instructions (`CLAUDE.md`

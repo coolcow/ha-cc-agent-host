@@ -1,11 +1,13 @@
 name: CC Agent Host
-version: "0.8.0"
+version: "0.8.1"
 slug: cc_agent_host
 description: Runs the official Claude Code CLI inside Home Assistant with your own subscription
 arch:
   - aarch64
   - amd64
 init: false
+# Prebuilt image from release.yaml (tag vX.Y.Z = version above); the Supervisor pulls it
+image: ghcr.io/coolcow/{arch}-addon-cc_agent_host
 startup: services
 boot: auto
 
