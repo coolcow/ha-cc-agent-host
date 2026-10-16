@@ -12,7 +12,7 @@ syncing your configuration to another computer, and every change needs your appr
   (for example a morning digest of new errors), sandboxed and read-only.
 - **Sensors** for sign-in state and plan usage, and Claude Code updates under Settings → Updates.
 
-Requirements: 64-bit Home Assistant OS or Supervised (aarch64 or amd64), 2 GB RAM or more, a Claude
+Requirements: 64-bit Home Assistant OS (aarch64 or amd64), 2 GB RAM or more, a Claude
 Pro or Max subscription. See the **Documentation** tab for setup and details.
 
 Not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic, PBC.

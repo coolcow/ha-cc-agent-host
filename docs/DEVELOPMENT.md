@@ -9,6 +9,13 @@
 - Use cases (usage statistics, log digests, …) are Home Assistant configuration, not part of
   the app.
 
+## Setup
+
+Dev container (`.devcontainer/`: Python 3.14, Docker CLI → host Docker, gh, Claude Code):
+`npx @devcontainers/cli up --workspace-folder .`, then
+`npx @devcontainers/cli exec --workspace-folder . claude` (or VS Code "Reopen in Container").
+Without it: `scripts/setup`. Checks: `scripts/agent/check`; rules for coding agents in `CLAUDE.md`.
+
 ## Local installation (Home Assistant OS)
 
 Only on the maintainer's decision. Needs SSH access to the device (Terminal & SSH app).

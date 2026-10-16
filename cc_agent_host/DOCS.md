@@ -12,8 +12,9 @@ of Anthropic, PBC.
 
 ## Requirements
 
-- Home Assistant OS or Supervised, 64-bit (aarch64 or amd64): e.g. Home Assistant Green/Yellow,
-  Raspberry Pi 4/5 with 64-bit HAOS, x86-64 mini PCs and VMs. There is no 32-bit build of Claude Code.
+- Home Assistant OS, 64-bit (aarch64 or amd64): e.g. Home Assistant Green/Yellow, Raspberry Pi 4/5,
+  x86-64 mini PCs and VMs. Supervised works too but is no longer supported by Home Assistant. There is
+  no 32-bit build of Claude Code.
 - 2 GB RAM or more (a running Claude Code process needs about 300-500 MB).
 - A Claude subscription (Pro or Max).
 - Nothing to change in Home Assistant itself: no configuration edits, no extra integrations required.
