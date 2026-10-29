@@ -68,7 +68,7 @@ covered by CI. If the image cannot be built locally, say so and rely on CI, don'
   `tools/bump-claude-code.sh`. Auto-updater stays disabled in the image.
 - **No project code reads, copies or sends credentials.** Sign-in happens only inside Claude Code
   (`/login`). Sole exception: the opt-in option `usage_api` (default `false`, off in releases), which reads
-  the interactive token only to query the usage endpoint at api.anthropic.com. Never widen this.
+  the interactive token only to query the usage and profile endpoints at api.anthropic.com. Never widen this.
 - **Nothing in the Home Assistant core system is changed** by the add-on or the integration (no edits to
   the user's configuration, no core patches). Interactive editing happens only in the user's session.
 - **Minimal privileges:** no exposed ports (`ports:` stays absent), terminal only via ingress (nginx admits

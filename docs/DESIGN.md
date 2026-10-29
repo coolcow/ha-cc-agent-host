@@ -69,7 +69,8 @@ but much harder to restrict to read-only operations.
 - *Status line (default):* Claude Code reports the 5-hour and weekly usage in its status line; the add-on
   records the values. No credentials are touched, but values only exist while a session is used.
 - *Usage API (opt-in, option `usage_api`):* the add-on queries the usage endpoint with the access token
-  of the interactive sign-in. Complete and always fresh, including usage credit, but add-on code reads
+  of the interactive sign-in (and the profile endpoint for the current rate limit tier, i.e. Max 5x or
+  20x). Complete and always fresh, including usage credit, but add-on code reads
   the token and the endpoint is undocumented. Hence off by default; the token never leaves the add-on
   except to `api.anthropic.com`.
 

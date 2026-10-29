@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2
+
+- Plan detection reads the current rate limit tier from Anthropic's profile endpoint (option `usage_api`
+  only). The tier stored with the sign-in stays as fallback; it goes stale after a plan change, so an
+  upgrade from Max 5x to Max 20x was still reported as `max_5x`.
+
 ## 0.8.1
 
 - First public release. Installations pull the prebuilt image for their architecture from GitHub

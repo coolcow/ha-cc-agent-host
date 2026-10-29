@@ -114,7 +114,9 @@ Two sources, chosen with the option **Full plan usage via usage API**:
 
 **Plan detection.** `/status` reports the plan of your sign-in (`pro`, `max_5x`, `max_20x`, …) and its
 usage multiplier relative to Pro (1, 5, 20). The subscription type comes from `claude auth status`; only the
-usage API option can tell Max 5x from Max 20x (otherwise the plan is reported as `max`).
+usage API option can tell Max 5x from Max 20x (otherwise the plan is reported as `max`). With it, the
+add-on asks Anthropic's profile endpoint for the current rate limit tier (so a plan change shows up within
+10 minutes) and falls back to the tier stored with your sign-in.
 
 **Why the usage API is off by default.** To query it, add-on code has to read the access token of your
 Claude sign-in. Anthropic's terms say third-party software must not collect, store or intermediate

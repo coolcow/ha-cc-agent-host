@@ -120,6 +120,8 @@ Zwei Quellen, gewählt mit der Option **Vollständige Plan-Nutzung über die Usa
 **Plan-Erkennung.** `/status` meldet den Plan deiner Anmeldung (`pro`, `max_5x`, `max_20x`, …) und seinen
 Nutzungsfaktor relativ zu Pro (1, 5, 20). Die Abo-Art kommt aus `claude auth status`; nur mit der
 Usage-API-Option lässt sich Max 5x von Max 20x unterscheiden (sonst wird der Plan als `max` gemeldet).
+Dann fragt das Add-on die aktuelle Stufe beim Profil-Endpunkt von Anthropic ab (ein Planwechsel zeigt
+sich so binnen 10 Minuten) und nimmt sonst die bei der Anmeldung gespeicherte Stufe.
 
 **Warum die Usage-API standardmäßig aus ist.** Um sie abzufragen, muss Add-on-Code das Zugangstoken
 deiner Claude-Anmeldung lesen. Anthropics Bedingungen besagen, dass Software von Dritten

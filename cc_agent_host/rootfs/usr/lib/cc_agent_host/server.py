@@ -61,6 +61,7 @@ AUDIT_LOG = DATA / "audit.log"
 INTERACTIVE_CREDENTIALS = DATA / "claude" / ".credentials.json"
 OPTIONS_FILE = DATA / "options.json"
 USAGE_API_URL = ENV("CC_USAGE_API_URL", "https://api.anthropic.com/api/oauth/usage")
+PROFILE_API_URL = ENV("CC_PROFILE_API_URL", "https://api.anthropic.com/api/oauth/profile")
 USAGE_API_TTL = 300
 
 MAX_BODY = 64 * 1024
@@ -519,8 +520,9 @@ def plan():
     """Plan of the interactive sign-in.
 
     The subscription type comes from `claude auth status` (official CLI). Max 5x and Max 20x can only be
-    told apart by the rate limit tier stored with the sign-in, which is read (that field only) when the
-    opt-in usage API is enabled; otherwise a Max plan is reported as "max" without multiplier.
+    told apart by the rate limit tier, which is only looked up when the opt-in usage API is enabled: live
+    from the profile endpoint, falling back to the tier stored with the sign-in (that field only), which
+    goes stale after a plan change. Otherwise a Max plan is reported as "max" without multiplier.
     """
     if _plan_cache["data"] and time.time() - _plan_cache["at"] < 600:
         return _plan_cache["data"]
@@ -534,10 +536,12 @@ def plan():
     except (OSError, ValueError, subprocess.SubprocessError):
         pass
     if option("usage_api", False):
-        try:
-            tier = json.loads(INTERACTIVE_CREDENTIALS.read_text())["claudeAiOauth"].get("rateLimitTier")
-        except (OSError, ValueError, KeyError):
-            pass
+        tier = profile_tier()
+        if not tier:
+            try:
+                tier = json.loads(INTERACTIVE_CREDENTIALS.read_text())["claudeAiOauth"].get("rateLimitTier")
+            except (OSError, ValueError, KeyError):
+                pass
     name = subscription or "unknown"
     if subscription == "max" and tier:
         name = "max_20x" if "20x" in tier else "max_5x" if "5x" in tier else "max"
@@ -727,8 +731,9 @@ def usage_statusline():
 
 # --- opt-in: usage API (option "usage_api") ------------------------------------------------
 # Reads the access token of the interactive sign-in to query Anthropic's (undocumented) plan usage
-# endpoint, which also reports usage credits. The token is only sent to api.anthropic.com and never
-# leaves the add-on otherwise; refreshing is left to Claude Code itself (a tiny prompt).
+# endpoint, which also reports usage credits, and the profile endpoint (current rate limit tier). The
+# token is only sent to api.anthropic.com and never leaves the add-on otherwise; refreshing is left to
+# Claude Code itself (a tiny prompt).
 
 _usage_cache = {"at": 0.0, "data": None, "refresh_at": 0.0}
 _usage_lock = threading.Lock()
@@ -772,6 +777,20 @@ def usage_api():
             return data
         _usage_cache.update(at=time.time(), data=data)
         return data
+
+
+def profile_tier():
+    """Current rate limit tier of the organization from the profile endpoint (opt-in), None on any error."""
+    try:
+        token, _ = interactive_token()
+        req = urllib.request.Request(PROFILE_API_URL, headers={
+            "Authorization": "Bearer " + token, "anthropic-beta": "oauth-2025-04-20",
+            "User-Agent": "cc-agent-host"})
+        with urllib.request.urlopen(req, timeout=20) as r:
+            tier = json.loads(r.read())["organization"]["rate_limit_tier"]
+        return tier if isinstance(tier, str) and tier else None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
 
 
 def parse_usage_api(raw):

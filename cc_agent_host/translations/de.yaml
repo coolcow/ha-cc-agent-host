@@ -12,7 +12,8 @@ configuration:
     description: >-
       Absichtlich standardmäßig aus. Eingeschaltet liest das Add-on das Zugangstoken
       deiner interaktiven Anmeldung, um Anthropics Endpunkt für die Plan-Nutzung
-      abzufragen (5 Stunden, Woche und Guthaben), auch wenn du Claude Code gerade nicht
+      abzufragen (5 Stunden, Woche und Guthaben) sowie den Profil-Endpunkt (Max 5x
+      oder 20x), auch wenn du Claude Code gerade nicht
       nutzt. Warum bewusst: Der Endpunkt ist keine dokumentierte öffentliche API und kann
       sich ändern, und Anthropics Bedingungen schränken ein, wie Software von Dritten mit
       Claude-Zugangsdaten umgehen darf. Das Token wird nur an api.anthropic.com gesendet.

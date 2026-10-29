@@ -330,6 +330,60 @@ def test_plan_with_usage_api(env, http, monkeypatch, tier, plan, mult):
     assert p["plan"] == plan and p["multiplier"] == mult
 
 
+def fake_profile(env, monkeypatch, tier, status=200):
+    """Profile endpoint stand-in reporting `tier` as the organization's rate limit tier."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import threading as th
+    calls = []
+
+    class Fake(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            calls.append(self.headers.get("Authorization"))
+            body = json.dumps({"account": {}, "organization": {"rate_limit_tier": tier}}).encode()
+            self.send_response(status)
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+    th.Thread(target=srv.serve_forever, daemon=True).start()
+    monkeypatch.setattr(env["server"], "PROFILE_API_URL", f"http://127.0.0.1:{srv.server_address[1]}/profile")
+    return calls
+
+
+def stored_tier(env, tier):
+    cred = json.loads((env["data"] / "credentials.json").read_text())
+    cred["claudeAiOauth"]["rateLimitTier"] = tier
+    (env["data"] / "credentials.json").write_text(json.dumps(cred))
+    env["server"]._plan_cache.update(at=0.0, data=None)
+
+
+def test_plan_prefers_live_profile_tier(env, http, monkeypatch):
+    usage_api_env(env, monkeypatch)
+    stored_tier(env, "default_claude_max_5x")  # stale after an upgrade
+    calls = fake_profile(env, monkeypatch, "default_claude_max_20x")
+    p = http("GET", "/status")[1]["plan"]
+    assert p["plan"] == "max_20x" and p["multiplier"] == 20 and p["tier"] == "default_claude_max_20x"
+    http("GET", "/status")
+    assert calls == ["Bearer tok"]  # cached for 10 minutes
+
+
+def test_plan_falls_back_to_stored_tier(env, http, monkeypatch):
+    usage_api_env(env, monkeypatch)
+    stored_tier(env, "default_claude_max_5x")
+    fake_profile(env, monkeypatch, "default_claude_max_20x", status=500)
+    p = http("GET", "/status")[1]["plan"]
+    assert p["plan"] == "max_5x" and p["multiplier"] == 5
+
+
+def test_plan_without_usage_api_skips_profile(env, http, monkeypatch):
+    calls = fake_profile(env, monkeypatch, "default_claude_max_20x")
+    assert http("GET", "/status")[1]["plan"]["plan"] == "max"
+    assert calls == []
+
+
 # --- Claude Code updates ----------------------------------------------------------------
 
 def fake_registry(env, monkeypatch, version="2.1.300", corrupt=False, reported=None):
