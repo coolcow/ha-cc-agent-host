@@ -9,9 +9,9 @@ RUN adduser -D -H -h /data/agent/home -s /sbin/nologin -u 1000 cc_agent \
 
 # Official Claude Code native build (musl), pinned and checksum-verified.
 # Same binary the official installer would place; it is not modified.
-ARG CLAUDE_CODE_VERSION=2.1.291
-ARG SHA512_ARM64=f6567d64497199d46a5747a58626ca6d7c28247af2e704467e5b1d29fecb855a292994ffc2c1aa20582dea6c3c3590d0fc11945f916017d627eb4759e643ad15
-ARG SHA512_X64=728193aea1249422c179dfa2d855f383fdc8a8720f77dfe61938a712a3bc22598a93ca8ea856137f9cd0cc9f66dff4fea7d42dda6d77d78fd2d3480e53f15e9b
+ARG CLAUDE_CODE_VERSION=2.1.316
+ARG SHA512_ARM64=3048ab67a3455b8190843c07651dc4b9610843bdc08929abf959016e8862c193975ba15a27b4d0278ca937709d743067f0728f5d58298d84ac5247db2a8d4d49
+ARG SHA512_X64=7e327ec4ce1c496f66feae998755bdb64ab421ae38184521d5319c26d72b3f014245678c08096e39fdacb79d4171a7adecc023067f52c2f2adb3deb08638505c
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 RUN case "$(apk --print-arch)" in \
         aarch64) pkg=linux-arm64-musl; sum="$SHA512_ARM64" ;; \
