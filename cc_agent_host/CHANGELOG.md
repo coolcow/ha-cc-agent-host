@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3
+
+- Claude Code 2.1.316
+
 ## 0.8.2
 
 - Plan detection reads the current rate limit tier from Anthropic's profile endpoint (option `usage_api`
