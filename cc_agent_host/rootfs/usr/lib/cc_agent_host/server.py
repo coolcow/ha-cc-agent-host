@@ -31,7 +31,7 @@ import threading
 import time
 import urllib.request
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -147,13 +147,131 @@ def supervisor_get(path, accept="application/json", headers=None):
     return body
 
 
-def ctx_ha_log(job_dir, opts):
-    """Raw core log; requires hassio_role homeassistant (not granted by default)."""
-    lines = int(opts.get("lines", 2000))
-    raw = supervisor_get("/core/logs", "text/plain", {"Range": f"entries=:-{lines}:"})
-    text = re.sub(r"\x1b\[[0-9;]*m", "", raw.decode("utf-8", "replace"))
-    (job_dir / "ha_log.txt").write_text(text)
-    return f"ha_log.txt: last {lines} lines of the Home Assistant core log"
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+LOG_LINE = re.compile(r"^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(?:\.\d+)?(?:[+-]\d\d:\d\d)?) "
+                      r"(DEBUG|INFO|WARNING|ERROR|CRITICAL) \(([^)]*)\) \[([^\]]+)\] ?(.*)$")
+LOG_CONTAINER_START = "s6-rc: info: service s6rc-oneshot-runner: starting"
+LOG_READY = re.compile(r"^Home Assistant initialized in ([\d.]+)s")
+LOG_FETCH_START, LOG_FETCH_MAX = 20000, 160000  # journal entries; about 10,000 a day on a busy system
+LOG_EXAMPLE_LINES, LOG_EXAMPLE_CHARS = 40, 3000
+
+
+def last_run_file(profile):
+    return DATA / f"last_run_{profile}.json"
+
+
+def log_time(text):
+    t = datetime.fromisoformat(text)
+    return t if t.tzinfo else t.astimezone()  # older lines carry no offset: local time of the add-on
+
+
+def log_normalize(message):
+    """Message without the parts that differ between repeats (numbers, ids, addresses, quoted values)."""
+    m = re.sub(r"'[^']*'|\"[^\"]*\"", "'…'", message)
+    m = re.sub(r"\b[0-9a-f]{8,}\b|\b[0-9A-F]{2}(?::[0-9A-F]{2}){5}\b", "<id>", m)
+    m = re.sub(r"\d+(?:[.,:]\d+)*", "#", m)
+    return m[:300]
+
+
+def log_patterns(lines, since, levels):
+    """Groups log lines from `since` on: level/logger/normalized message -> count, first, last, example.
+    Lines without a timestamp (tracebacks) belong to the line before. Also lists container starts."""
+    patterns, restarts, current, pending_start = {}, [], None, False
+    for line in lines:
+        if line.startswith(LOG_CONTAINER_START):
+            pending_start, current = True, None
+            continue
+        m = LOG_LINE.match(line)
+        if not m:
+            if current is not None and len(current["example"]) < LOG_EXAMPLE_LINES:
+                current["example"].append(line)
+            continue
+        current = None
+        ts, level, _, logger, message = m.groups()
+        when = log_time(ts.replace(" ", "T"))
+        if when < since:
+            pending_start = False
+            continue
+        if pending_start:
+            restarts.append({"start": when.isoformat(timespec="seconds"), "ready": None})
+            pending_start = False
+        ready = LOG_READY.match(message)
+        if ready and restarts and restarts[-1]["ready"] is None:
+            restarts[-1]["ready"] = when.isoformat(timespec="seconds")
+        if level not in levels:
+            continue
+        key = (level, logger, log_normalize(message))
+        p = patterns.get(key)
+        if p is None:
+            p = patterns[key] = {"level": level, "logger": logger, "message": key[2], "count": 0,
+                                 "first": when, "last": when, "example": [line]}
+            current = p
+        p["count"] += 1
+        p["last"] = when
+    out = sorted(patterns.values(), key=lambda p: (-p["count"], p["first"]))
+    for p in out:
+        p["first"], p["last"] = (p[k].isoformat(timespec="seconds") for k in ("first", "last"))
+        p["example"] = "\n".join(p["example"])[:LOG_EXAMPLE_CHARS]
+    return out, restarts
+
+
+def fetch_core_log(since):
+    """Core log lines back to `since`. The Supervisor journal API only takes entry counts
+    (Range: entries=:-N:), so fetch more until the oldest line is older than `since`."""
+    count = LOG_FETCH_START
+    while True:
+        raw = supervisor_get("/core/logs", "text/plain", {"Range": f"entries=:-{count}:"})
+        lines = re.sub(r"\x1b\[[0-9;]*m", "", raw.decode("utf-8", "replace")).splitlines()
+        oldest = next((m.group(1) for m in map(LOG_LINE.match, lines) if m), None)
+        if len(lines) < count or count >= LOG_FETCH_MAX or (
+                oldest and log_time(oldest.replace(" ", "T")) <= since):
+            return lines, oldest
+        count *= 2
+
+
+def ctx_ha_log(job_dir, opts, profile=None):
+    """Core log from the journal; survives restarts. Requires hassio_role homeassistant.
+    Default: warnings and errors since the last successful run of the profile, grouped to patterns.
+    With `lines`: the raw last N lines (older behaviour)."""
+    if "lines" in opts and "since" not in opts and "levels" not in opts:
+        lines = int(opts["lines"])
+        raw = supervisor_get("/core/logs", "text/plain", {"Range": f"entries=:-{lines}:"})
+        text = re.sub(r"\x1b\[[0-9;]*m", "", raw.decode("utf-8", "replace"))
+        (job_dir / "ha_log.txt").write_text(text)
+        return f"ha_log.txt: last {lines} lines of the Home Assistant core log"
+    levels = [str(x).upper() for x in opts.get("levels", ["WARNING", "ERROR", "CRITICAL"])]
+    if not set(levels) <= set(LOG_LEVELS):
+        raise ValueError(f"ha_log levels must be out of {', '.join(LOG_LEVELS)}")
+    now = datetime.now().astimezone()
+    max_h, default_h = float(opts.get("max_hours", 72)), float(opts.get("default_hours", 24))
+    since, source = now - timedelta(hours=default_h), f"no previous run: last {default_h:g} h"
+    if opts.get("since", "last_run") == "last_run":
+        try:
+            since = datetime.fromisoformat(json.loads(last_run_file(profile).read_text())["since_next"])
+            source = "since the last successful run"
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    else:
+        since, source = now - timedelta(hours=float(opts["since"])), f"last {float(opts['since']):g} h"
+    if since < now - timedelta(hours=max_h):
+        since, source = now - timedelta(hours=max_h), f"{source}, capped to {max_h:g} h"
+    lines, oldest = fetch_core_log(since)
+    patterns, restarts = log_patterns(lines, since, set(levels))
+    doc = {"since": since.isoformat(timespec="seconds"), "until": now.isoformat(timespec="seconds"),
+           "window": source, "oldest_line": oldest, "levels": levels, "restarts": restarts,
+           "patterns": patterns}
+    text = json.dumps(doc, ensure_ascii=False, indent=1)
+    while len(text.encode()) > MAX_CONTEXT and doc["patterns"]:
+        doc["patterns"] = doc["patterns"][:len(doc["patterns"]) * 3 // 4]
+        doc["truncated"] = True
+        text = json.dumps(doc, ensure_ascii=False, indent=1)
+    (job_dir / "ha_log.json").write_text(text)
+
+    def remember():
+        last_run_file(profile).write_text(json.dumps({"since_next": now.isoformat(timespec="seconds")}))
+    return (f"ha_log.json: Home Assistant core log from the journal ({', '.join(levels)}), "
+            f"{doc['since']} to {doc['until']} ({source}); {len(patterns)} patterns with count, first, last "
+            f"and an example (traceback included), {len(restarts)} restarts in the window", remember)
 
 
 def ha_websocket(command):
@@ -419,7 +537,14 @@ def run_job(profile_name, prompt, timeout=None):
     running.update(id=job_id, profile=profile_name, since=time.time())
     try:
         job_dir.mkdir(parents=True, mode=0o700)
-        notes = [CONTEXT_PROVIDERS[name](job_dir, opts) for name, opts in profile["context"]]
+        notes, on_success = [], []
+        for name, opts in profile["context"]:
+            note = (CONTEXT_PROVIDERS[name](job_dir, opts, profile_name) if name == "ha_log"
+                    else CONTEXT_PROVIDERS[name](job_dir, opts))
+            if isinstance(note, tuple):  # (note, callback after a successful job)
+                note, done = note
+                on_success.append(done)
+            notes.append(note)
         (job_dir / "CONTEXT.md").write_text("# Context files\n\n" + "\n".join(f"- {n}" for n in notes) + "\n")
         if RUN_AS:
             user = RUN_AS.split(":")[0]
@@ -427,6 +552,9 @@ def run_job(profile_name, prompt, timeout=None):
             audit["user"] = user
         out, timed_out, rc = execute(build_command(profile), job_dir, prompt, token, timeout)
         result = parse_result(out, rc, timed_out)
+        if result["ok"]:
+            for done in on_success:
+                done()
         audit.update(exit=rc, timed_out=timed_out, is_error=result["is_error"], turns=result.get("num_turns"),
                      cost_usd=result.get("cost_usd"), denials=result.get("permission_denials"),
                      result_len=len(result.get("result") or ""))

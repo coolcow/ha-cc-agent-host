@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 import os
 import threading
 
@@ -167,6 +168,80 @@ def test_context_failure_reported(env, http, monkeypatch):
     code, r = http("POST", "/run", {"profile": "log", "prompt": "x"})
     assert code == 500 and "websocket auth failed" in r["error"]
     assert list(env["jobs"].iterdir()) == []
+
+
+
+def core_log(now):
+    """Journal text as the Supervisor returns it: colour codes, tracebacks, a container restart."""
+    t = [(now - timedelta(hours=h)).strftime("%Y-%m-%d %H:%M:%S.000%z") for h in (30, 3, 2, 1.5, 1)]
+    t = [x[:-2] + ":" + x[-2:] for x in t]
+    return "\n".join([
+        f"\x1b[33m{t[0]} WARNING (MainThread) [old] too old\x1b[0m",
+        f"{t[1]} ERROR (MainThread) [custom_components.liebherr] Failed to fetch appliances: 401",
+        "Traceback (most recent call last):",
+        '  File "x.py", line 3, in f',
+        f"{t[1]} INFO (MainThread) [homeassistant.core] noise",
+        "s6-rc: info: service s6rc-oneshot-runner: starting",
+        f"{t[2]} INFO (MainThread) [homeassistant.bootstrap] Home Assistant initialized in 194.64s",
+        f"{t[3]} ERROR (MainThread) [custom_components.liebherr] Failed to fetch appliances: 503",
+        f"{t[4]} WARNING (MainThread) [homeassistant.helpers.template] Template variable warning: 'x' undefined",
+    ]).encode()
+
+
+def test_ha_log_patterns(env):
+    srv = env["server"]
+    now = datetime.now().astimezone()
+    lines = core_log(now).decode().replace("\x1b[33m", "").replace("\x1b[0m", "").splitlines()
+    patterns, restarts = srv.log_patterns(lines, now - timedelta(hours=24), {"WARNING", "ERROR"})
+    assert [(p["logger"], p["count"]) for p in patterns] == [
+        ("custom_components.liebherr", 2), ("homeassistant.helpers.template", 1)]
+    assert patterns[0]["message"] == "Failed to fetch appliances: #"
+    assert "Traceback" in patterns[0]["example"] and "noise" not in patterns[0]["example"]
+    assert len(restarts) == 1 and restarts[0]["ready"]
+
+
+def test_ha_log_since_last_successful_run(env, http, monkeypatch):
+    srv = env["server"]
+    now = datetime.now().astimezone()
+    ranges = []
+
+    def get(path, accept="application/json", headers=None):
+        assert path == "/core/logs"
+        ranges.append(headers["Range"])
+        return core_log(now)
+    monkeypatch.setattr(srv, "supervisor_get", get)
+    (env["profiles"] / "digest.yaml").write_text("context:\n  - ha_log:\n      levels: [ERROR]\n")
+    stamp = env["data"] / "last_run_digest.json"
+
+    env["mode"].write_text("error")  # failed job: the window is not moved on
+    http("POST", "/run", {"profile": "digest", "prompt": "x"})
+    assert not stamp.exists() and ranges == ["entries=:-20000:"]
+
+    env["mode"].write_text("")
+    code, r = http("POST", "/run", {"profile": "digest", "prompt": "x"})
+    assert code == 200 and r["ok"] and "ha_log.json" in result_of(r)["files"]
+    since_next = datetime.fromisoformat(json.loads(stamp.read_text())["since_next"])
+    assert abs((since_next - now).total_seconds()) < 60
+
+    job = env["tmp"] / "probe-log"
+    job.mkdir()
+    note, _ = srv.ctx_ha_log(job, {"levels": ["ERROR"]}, "digest")
+    doc = json.loads((job / "ha_log.json").read_text())
+    assert "last successful run" in note and doc["patterns"] == []  # nothing after the stamp
+
+    stamp.write_text(json.dumps({"since_next": (now - timedelta(days=10)).isoformat()}))
+    srv.ctx_ha_log(job, {}, "digest")
+    doc = json.loads((job / "ha_log.json").read_text())
+    assert "capped to 72 h" in doc["window"] and [p["count"] for p in doc["patterns"]] == [2, 1, 1]
+
+
+def test_ha_log_raw_lines(env, monkeypatch):
+    srv = env["server"]
+    monkeypatch.setattr(srv, "supervisor_get", lambda path, accept=None, headers=None: b"\x1b[31mline\x1b[0m")
+    job = env["tmp"] / "probe-raw"
+    job.mkdir()
+    assert "last 50 lines" in srv.ctx_ha_log(job, {"lines": 50}, "x")
+    assert (job / "ha_log.txt").read_text() == "line"
 
 
 HISTORY_STATES = [

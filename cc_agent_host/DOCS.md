@@ -71,11 +71,19 @@ added on start; existing files are never overwritten. Defaults:
 |---|---|---|
 | `read` | Read, Grep, Glob | none |
 | `read-config` | Read, Grep, Glob | filtered copy of the HA configuration |
-| `log-digest` | Read, Grep, Glob | Home Assistant system log (errors, warnings) |
+| `log-digest` | Read, Grep, Glob | core log since the last run and system log (errors, warnings) |
 
 Profile keys: `description`, `model` (default `sonnet`), `max_turns`, `timeout` (seconds, max 1800),
-`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_system_log`, `ha_states`, `ha_history`, `ha_config`; `ha_log` needs the Supervisor role `homeassistant`),
+`max_budget_usd`, `tools` (built-in Claude Code tools), `context` (`ha_log`, `ha_system_log`, `ha_states`, `ha_history`, `ha_config`),
 `system_prompt`.
+
+Context `ha_log` reads the core log from the journal (it survives restarts, unlike the system log) and
+writes `ha_log.json`: the window, the restarts in it and patterns (level, logger, message with numbers
+and ids replaced) with count, first, last and one example including its traceback, most frequent first.
+Options: `levels` (default `[WARNING, ERROR, CRITICAL]`), `since` (`last_run`, the default: since the
+last successful job of this profile, 24 h (`default_hours`) without one; or a number of hours),
+`max_hours` (default 72). The stamp is stored only when the job succeeds, so a failed run is covered
+by the next one. `lines: N` instead writes the raw last N lines to `ha_log.txt`.
 
 Context `ha_history` writes the recorder history as compact timelines, one file per area
 (`ha_history/<area>.txt`, overview in `ha_history/INDEX.md`, local time). Options: `hours` (default 24,

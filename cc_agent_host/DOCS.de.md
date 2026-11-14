@@ -73,12 +73,21 @@ beim Start ergänzt; vorhandene Dateien werden nie überschrieben. Standardprofi
 |---|---|---|
 | `read` | Read, Grep, Glob | keine |
 | `read-config` | Read, Grep, Glob | gefilterte Kopie der HA-Konfiguration |
-| `log-digest` | Read, Grep, Glob | Home-Assistant-Systemlog (Fehler, Warnungen) |
+| `log-digest` | Read, Grep, Glob | Core-Log seit dem letzten Lauf und Systemlog (Fehler, Warnungen) |
 
 Profilschlüssel: `description`, `model` (Standard `sonnet`), `max_turns`, `timeout` (Sekunden, max.
-1800), `max_budget_usd`, `tools` (eingebaute Claude-Code-Werkzeuge), `context` (`ha_system_log`,
-`ha_states`, `ha_history`, `ha_config`; `ha_log` braucht die Supervisor-Rolle `homeassistant`),
+1800), `max_budget_usd`, `tools` (eingebaute Claude-Code-Werkzeuge), `context` (`ha_log`,
+`ha_system_log`, `ha_states`, `ha_history`, `ha_config`),
 `system_prompt`.
+
+Der Kontext `ha_log` liest das Core-Log aus dem Journal (übersteht Neustarts, anders als das Systemlog)
+und schreibt `ha_log.json`: den Zeitraum, die Neustarts darin und Muster (Stufe, Logger, Meldung mit
+ersetzten Zahlen und IDs) mit Anzahl, erstem und letztem Auftreten und einem Beispiel samt Traceback,
+häufigste zuerst. Optionen: `levels` (Standard `[WARNING, ERROR, CRITICAL]`), `since` (`last_run`,
+Standard: seit dem letzten erfolgreichen Auftrag dieses Profils, ohne einen 24 h (`default_hours`);
+oder eine Stundenzahl), `max_hours` (Standard 72). Der Zeitpunkt wird nur bei Erfolg gespeichert, ein
+fehlgeschlagener Lauf wird also vom nächsten abgedeckt. `lines: N` schreibt stattdessen die letzten N
+Rohzeilen nach `ha_log.txt`.
 
 Der Kontext `ha_history` schreibt den Verlauf des Recorders als kompakte Zeitleisten, eine Datei pro
 Bereich (`ha_history/<bereich>.txt`, Übersicht in `ha_history/INDEX.md`, Ortszeit). Optionen: `hours`

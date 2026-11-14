@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- Context `ha_log` reads the core log from the journal, so it covers restarts that clear Home
+  Assistant's own system log. By default it keeps warnings and errors (`levels`) since the last
+  successful job of the same profile (stamp in `/data/last_run_<profile>.json`, written only when the
+  job succeeds; 24 h without a stamp, at most `max_hours` 72) and groups them into patterns (logger +
+  normalized message) with count, first, last, an example with its traceback, and the restarts in the
+  window (`ha_log.json`). `since: <hours>` sets a fixed window; `lines` keeps the raw last N lines.
+- The add-on asks for the Supervisor role `homeassistant`, which `ha_log` needs to read the journal.
+- Profile `log-digest` adds `ha_log` next to `ha_system_log`.
+
 ## 0.8.2
 
 - Plan detection reads the current rate limit tier from Anthropic's profile endpoint (option `usage_api`

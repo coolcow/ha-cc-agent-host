@@ -87,6 +87,7 @@ the job user cannot reach the original folder at all. Nothing in the user's conf
 | `addon_config` | rw | profiles |
 | `hassio_api` | yes | context data (logs) and discovery |
 | `homeassistant_api` | yes | context data (states, history) |
+| `hassio_role` | `homeassistant` | read the core log journal (context `ha_log`); the token stays with the server, jobs never get it |
 | AppArmor | enabled | |
 | Ports | none | ingress and internal network only |
 | SSH, Docker access, `privileged`, `host_network` | no | |
